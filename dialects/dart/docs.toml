@@ -1,0 +1,210 @@
+# Editor documentation of the dart dialect: what the editor shows for each kind and header word.
+# Markdown, in English. Not part of the dialect's rules: the loader skips docs.toml and a build never
+# reads it (Dialect::doc, spec/dialects.md §5.7). Rules: spec/dart.md.
+
+[kinds]
+
+extension = '''
+Adds methods to an **existing type** without changing it (a Dart extension).
+
+```nuclear
+extension NumberParsing on String
+  parseInt() int
+    this.toInt()!            // this = the String
+
+n = '42'.parseInt()
+```
+
+```dart
+extension NumberParsing on String {
+  int parseInt() {
+    return int.tryParse(this)!;
+  }
+}
+```
+
+- `on Type` (required) is the extended type.
+- Inside, `this` is the value; members of the type are used directly (`length`).
+'''
+
+mixin = '''
+A set of members that **other modules mix in** with `with` (a Dart mixin). `on Base` limits it to
+modules that extend `Base`, and lets it use their members.
+
+```nuclear
+mixin Flyer on Animal
+  fly() string
+    "${name} is flying"        // name comes from Animal
+
+Bird: Animal with Flyer
+```
+
+```
+ Animal ◄── extends ── Bird ── with ──► Flyer (on Animal)
+```
+'''
+
+data = '''
+An **immutable value**: only its fields. Nuclear writes the class with a `const` constructor of
+named parameters, `copyWith` and `toJson`.
+
+```nuclear
+data Point
+  x: double
+  y: double
+
+p = Point(x = 1, y = 2)
+q = p.copyWith(y = 5)          // a new Point(1, 5)
+```
+
+```dart
+class Point {
+  const Point({required this.x, required this.y});
+  final double x;
+  final double y;
+  Point copyWith({double? x, double? y}) { ... }
+  Map<String, dynamic> toJson() => {'x': x, 'y': y};
+}
+```
+
+Methods may be added below the fields.
+'''
+
+[words]
+
+abstract = '''
+`abstract`: a module that cannot be built; other modules extend it. Methods without a body are
+the ones each subclass must write.
+
+```nuclear
+abstract Shape
+  area() double
+
+Circle: Shape
+  (radius: double)
+  area() double
+    3.14 * radius * radius
+```
+'''
+
+static = '''
+`static`: a member of the module itself, not of each object. Called on the module:
+`Counter.total`.
+
+```nuclear
+Ids
+  static next: int = 0
+  static take() int
+    next += 1
+    next
+```
+'''
+
+late = '''
+`late`: a field that gets its value after the constructor, before it is read. Reading it first is
+an error at run time.
+
+```nuclear
+late controller: AnimationController
+```
+'''
+
+final = '''
+`final`: a field that is assigned once. Variables do not need it: one that is never reassigned is
+already `final`.
+
+```nuclear
+final id: string
+```
+'''
+
+const = '''
+`const`: a compile-time constant member.
+
+```nuclear
+static const maxItems: int = 50
+```
+'''
+
+sealed = '''
+`sealed`: a module whose subclasses are all in the same file, so a `match` with `is` can know them
+all.
+
+```nuclear
+sealed Shape
+Circle: Shape
+Square: Shape
+```
+'''
+
+base = '''
+`base`: a module that can be extended but not implemented (`>`) outside its library.
+'''
+
+external = '''
+`external`: a member whose body is outside Dart (native code, JS interop).
+'''
+
+factory = '''
+`factory`: a constructor that may return an existing object or a subclass instead of a new one.
+'''
+
+covariant = '''
+`covariant`: a parameter of an overriding method may take a narrower type than the base method's.
+'''
+
+get = '''
+`get`: a **getter**, a member read like a field but computed on every read.
+
+```nuclear
+Circle
+  (radius: double)
+  get area() double
+    3.14 * radius * radius
+
+c.area           // no parentheses
+```
+
+```dart
+double get area {
+  return 3.14 * radius * radius;
+}
+```
+'''
+
+set = '''
+`set`: a **setter**, code that runs when a value is assigned to the member. It never returns.
+
+```nuclear
+Temperature
+  celsius: double = 0
+  set fahrenheit(value: double)
+    celsius = (value - 32) / 1.8
+
+t.fahrenheit = 212        // celsius = 100
+```
+'''
+
+with = '''
+`with Mixin, Other`: mixes the members of those mixins into the module.
+
+```nuclear
+Bird: Animal with Flyer, Singer
+```
+
+```dart
+class Bird extends Animal with Flyer, Singer { ... }
+```
+
+In a `stateful` widget, the mixin goes to its `State` (`with SingleTickerProviderStateMixin`).
+'''
+
+on = '''
+`on Type`: in an `extension`, the extended type; in a `mixin`, the base the modules that use it
+must extend.
+
+```nuclear
+extension Words on String
+mixin Flyer on Animal
+```
+'''

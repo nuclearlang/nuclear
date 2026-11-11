@@ -1,0 +1,13 @@
+sqrt 1.4142 cbrt 3.0000 hypot 5.0000
+pow 1024 6.2500 0.5000 -4
+abs 7 sign -1
+floor 2 ceil 3 round 3 -3 trunc -2
+sin 0.5000 cos 1.0000 tan 1.0000
+asin 1.5708 acos 0.0000 atan2 0.7854
+exp 2.7183 ln 1.0000 log10 3.0000 log2 3.0000
+min 3 max 9 clamp 10
+intdiv 3 rem 2
+parse 43 3.5000
+radix ff 101 fixed 2.0
+special false true true
+sci 3.0000 bin 10 hex 255 sep 1000000

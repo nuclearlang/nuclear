@@ -1,0 +1,53 @@
+# Reserved words of the NuclearLang base language.
+# They are the only ones the lexer knows (crates/nuclear-syntax/src/token.rs; a test checks they match).
+# Dialect words (stateless, extension, static, on, with...) go in the header and are not reserved.
+
+[language]
+name = "nuclear"
+version = "0.1"
+source = "spec/nuclear-base.md"
+escape = "none"   # not renamed in Nuclear: using a reserved word as a name is error N0001
+
+[keywords]
+# modules (decision 14)
+use  = { level = "reserved", note = "use fs/promises{ readFile } — replaces import" }
+from = { level = "reserved", note = "use * as path from path" }
+as   = { level = "reserved" }
+
+# control flow
+if       = { level = "reserved" }
+else     = { level = "reserved" }
+for      = { level = "reserved" }
+in       = { level = "reserved" }
+while    = { level = "reserved" }
+match    = { level = "reserved" }
+return   = { level = "reserved" }
+yield    = { level = "reserved", note = "yield value: the function is a generator" }
+break    = { level = "reserved" }
+continue = { level = "reserved" }
+
+# errors
+try     = { level = "reserved" }
+catch   = { level = "reserved" }
+finally = { level = "reserved" }
+throw   = { level = "reserved" }
+
+# word operators (decision 4)
+and = { level = "reserved" }
+or  = { level = "reserved" }
+not = { level = "reserved" }
+is  = { level = "reserved" }
+
+# values
+true  = { level = "reserved" }
+false = { level = "reserved" }
+null  = { level = "reserved" }
+this  = { level = "reserved", note = "the receiver in extensions: int.parse(this). For attributes use $field" }
+super = { level = "reserved", note = "super.method() and super(...)" }
+
+# Removed by spec/decisions.md:
+#   import            → use (14)
+#   await             → ~call() (12, 13)
+#   var               → x = 1; the transpiler decides const/let (3)
+#   private, export   → there is no visibility (7)
+#   class, interface, enum → inferred from the shape of the block (16, nuclear-base §4.3)

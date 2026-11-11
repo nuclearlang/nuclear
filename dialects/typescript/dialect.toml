@@ -1,0 +1,268 @@
+# typescript dialect: how each Nuclear construct is written in TypeScript 5 (ES modules).
+# A "target" dialect: it extends no other, so it defines every [syntax] template.
+# nodejs and nestjs extend it. Format and variables: spec/dialects.md or `nuclear spec`.
+
+[dialect]
+name = "typescript"
+description = "TypeScript 5 with ES modules"
+file_extension = "ts"
+indent = "  "
+
+[options]
+implicit_self = false        # members are written with this.
+int_member_parens = true     # (5).toString(2): 5. would start a decimal
+cascade_statements = true    # paint = Paint() + ..color = x → const paint = new Paint(); paint.color = x;
+named_args = "object"        # f(a, x = 1) to an external function → f(a, { x: 1 })
+string_quote = "'"
+interp_quote = "`"
+dollar_escape = "before_brace"
+reserved_escape = "suffix"
+max_bases = 1
+catch_var = "error"
+
+[syntax]
+# --- imports ---
+import_names = "import { {{names}} } from '{{module}}';"
+import_alias = "import * as {{alias}} from '{{module}}';"
+import_default = "import {{default_name}} from '{{module}}';"
+import_file = "import '{{path}}';"
+module_path = "{{path}}"
+file_path = "{{path}}"
+# another file of a project: a relative import (./data/task, ../shared/user)
+project_import = "{{relative}}"
+
+# --- declarations ---
+export = "export "
+# `{{{#members}}` is a literal `{` followed by the section: an empty class is written `{}`
+class = """
+{{decorators}}{{export}}{{modifiers}}class {{name}}{{generics}}{{#extends}} extends {{extends}}{{/extends}}{{#implements}} implements {{implements}}{{/implements}} {{{#members}}
+  {{members}}
+{{/members}}}"""
+interface = """
+{{decorators}}{{export}}interface {{name}}{{generics}}{{#extends}} extends {{extends}}{{/extends}} {
+  {{members}}
+}"""
+interface_field = "{{name}}{{#optional}}?{{/optional}}: {{type}};"
+interface_method = "{{name}}{{generics}}({{params}}): {{#ret}}{{ret}}{{/ret}}{{^ret}}void{{/ret}};"
+enum = """
+{{export}}enum {{name}} {
+  {{items}}
+}"""
+enum_item = "{{name}}{{#value}} = {{value}}{{/value}}"
+function = """
+{{decorators}}{{export}}{{#async}}async {{/async}}function{{#generator}}*{{/generator}} {{name}}{{generics}}({{params}}){{#ret}}: {{ret}}{{/ret}} {
+  {{body}}
+}"""
+method = """
+{{decorators}}{{modifiers}}{{#override}}override {{/override}}{{#async}}async {{/async}}{{#generator}}*{{/generator}}{{name}}{{generics}}({{params}}){{#ret}}: {{ret}}{{/ret}} {
+  {{body}}
+}"""
+method_signature = "{{decorators}}{{#abstract}}abstract {{/abstract}}{{modifiers}}{{name}}{{generics}}({{params}}){{#ret}}: {{ret}}{{/ret}};"
+field = "{{decorators}}{{modifiers}}{{name}}{{#optional}}?{{/optional}}{{#uninitialized}}!{{/uninitialized}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}};"
+constructor = """
+constructor({{params}}) {{{#body}}
+  {{body}}
+{{/body}}}"""
+super_call = "super();"
+ctor_param = "{{decorators}}public {{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+param = "{{decorators}}{{name}}{{#optional}}?{{/optional}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}"
+decorator = "@{{name}}{{#has_args}}({{args}}){{/has_args}}"
+generics = "<{{names}}>"
+generic_param = "{{name}}{{#bound}} extends {{bound}}{{/bound}}"
+comment = "// {{text}}"
+doc_comment = { file = "templates/doc_comment.tpl" }
+
+# --- statements ---
+const_decl = "const {{name}}{{#type}}: {{type}}{{/type}} = {{value}};"
+let_decl = "let {{name}}{{#type}}: {{type}}{{/type}} = {{value}};"
+declare = "let {{name}}{{#type}}: {{type}}{{/type}};"
+assign = "{{target}} {{op}} {{value}};"
+expr_stmt = "{{expr}};"
+return = "return{{#value}} {{value}}{{/value}};"
+if = """
+if ({{cond}}) {
+  {{body}}
+}"""
+else_if = """
+ else if ({{cond}}) {
+  {{body}}
+}"""
+else = """
+ else {
+  {{body}}
+}"""
+for_in = """
+for (const {{var}} of {{iter}}) {
+  {{body}}
+}"""
+for_range = """
+for (let {{var}} = {{start}}; {{var}} < {{end}}; {{var}}++) {
+  {{body}}
+}"""
+for_entries = """
+for (const [{{key}}, {{value}}] of {{#map}}{{iter}}{{/map}}{{^map}}Object.entries({{iter}}){{/map}}) {
+  {{body}}
+}"""
+while = """
+while ({{cond}}) {
+  {{body}}
+}"""
+try = """
+try {
+  {{body}}
+}{{#catch}} catch ({{catch_var}}) {
+  {{catch_body}}
+}{{/catch}}{{#finally}} finally {
+  {{finally_body}}
+}{{/finally}}"""
+throw = "throw {{value}};"
+break = "break;"
+continue = "continue;"
+yield = "yield {{value}};"
+yield_all = "yield* {{value}};"
+
+# --- expressions ---
+self_member = "this.{{name}}"
+this = "this"
+super = "super"
+null = "null"
+true = "true"
+false = "false"
+list = "[{{items}}]"
+object = "{{#entries}}{ {{entries}} }{{/entries}}{{^entries}}{}{{/entries}}"
+object_entry = "{{key}}: {{value}}"
+object_key_ident = "{{key}}"
+object_key_string = "'{{key}}'"
+object_shorthand = "{{key}}"
+object_spread = "...{{expr}}"
+call = "{{callee}}({{args}})"
+construct = "new {{callee}}({{args}})"
+named_arg = "{{name}}: {{value}}"
+spread_arg = "...{{expr}}"
+list_if = "...({{cond}} ? [{{value}}] : [])"
+cascade = """
+(($) => {
+{{#sections}}
+  {{.}};
+{{/sections}}
+  return $;
+})({{target}})"""
+cascade_self = "$"
+pattern_ignore = ""
+pattern_assign = "({{target}} = {{value}});"
+member = "{{object}}.{{name}}"
+optional_member = "{{object}}?.{{name}}"
+index = "{{object}}[{{index}}]"
+await = "await {{expr}}"
+ternary = "{{cond}} ? {{then}} : {{else}}"
+# basic types have no class at run time: typeof (int: Number.isInteger), lists: Array.isArray
+is = "{{#t.list}}Array.isArray({{expr}}){{/t.list}}{{^t.list}}{{#t.primitive}}{{#t.is.int}}Number.isInteger({{expr}}){{/t.is.int}}{{^t.is.int}}typeof {{expr}} === '{{#t.is.string}}string{{/t.is.string}}{{#t.is.double}}number{{/t.is.double}}{{#t.is.number}}number{{/t.is.number}}{{#t.is.boolean}}boolean{{/t.is.boolean}}'{{/t.is.int}}{{/t.primitive}}{{^t.primitive}}{{expr}} instanceof {{type}}{{/t.primitive}}{{/t.list}}"
+cast = "{{expr}} as {{type}}"
+non_null = "{{expr}}!"
+lambda = """
+{{#async}}async {{/async}}({{params}}) => {
+  {{body}}
+}"""
+lambda_expr = "{{#async}}async {{/async}}({{params}}) => {{expr}}"
+
+# --- Result<T, E> (spec/nuclear-base.md §3.2) ---
+result_runtime = { file = "templates/result.tpl" }
+result_err = "Err({{value}})"
+result_is_ok = "{{result}}.isOk"
+result_is_err = "{{result}}.isErr"
+result_value = "{{result}}.value"
+result_error = "{{result}}.error"
+result_propagate = "if ({{result}}.isErr) return Err({{result}}.error);"
+result_then = "{{target}}.andThen({{callback}})"
+result_tap = "{{target}}.inspect({{callback}})"
+result_recover = "{{target}}.orElse({{callback}})"
+result_tap_error = "{{target}}.inspectErr({{callback}})"
+result_map = "{{target}}.map({{callback}})"
+result_get_or_else = "{{target}}.getOrElse({{callback}})"
+result_ok = "Ok({{value}})"
+
+[types]
+string = "string"
+int = "number"
+double = "number"
+number = "number"
+boolean = "boolean"
+bool = "boolean"
+void = "void"
+any = "any"
+dynamic = "any"
+unknown = "any"
+list = "{{item}}[]"
+map = "Record<{{key}}, {{value}}>"
+nullable = "{{type}} | null"
+union = "{{types|join:\" | \"}}"
+string_literal = "'{{value}}'"
+number_literal = "{{value}}"
+function = "({{params}}) => {{ret}}"
+generic = "{{name}}<{{args}}>"
+async = "Promise<{{type}}>"
+Future = "Promise"
+DateTime = "Date"
+Duration = "number"
+Bytes = "Uint8Array"
+Regex = "RegExp"
+Match = "RegExpMatchArray"
+generator = "Generator<{{type}}>"
+async_generator = "AsyncGenerator<{{type}}>"
+
+[operators]
+and = "&&"
+or = "||"
+not = "!"
+neg = "-"
+# null is "no value": == null / != null also covers undefined (an optional property, a missing argument)
+eq = "{{left_infix}} {{#null}}=={{/null}}{{^null}}==={{/null}} {{right_infix}}"
+not_eq = "{{left_infix}} {{#null}}!={{/null}}{{^null}}!=={{/null}} {{right_infix}}"
+lt = "<"
+gt = ">"
+lt_eq = "<="
+gt_eq = ">="
+add = "+"
+sub = "-"
+mul = "*"
+div = "/"
+rem = "%"
+coalesce = "??"
+int_div = "Math.trunc({{left}} / {{right}})"
+pow = "**"
+bit_and = "&"
+bit_or = "|"
+bit_xor = "^"
+bit_not = "~"
+shl = "<<"
+shr = ">>"
+ushr = ">>>"
+in = "{{#map}}{{right}}.has({{left}}){{/map}}{{#set}}{{right}}.has({{left}}){{/set}}{{#object}}{{left}} in {{right}}{{/object}}{{^map}}{{^set}}{{^object}}{{right}}.includes({{left}}){{/object}}{{/set}}{{/map}}"
+range = "Array.from({ length: {{right}} - {{left}} }, (_, i) => {{left}} + i)"
+
+[names]
+# global names of the environment: they exist without declaring or importing them
+globals = [
+  "console", "globalThis", "undefined", "NaN", "Infinity", "JSON", "Math", "Date", "Promise", "Object",
+  "Array", "Number", "String", "Boolean", "Symbol", "BigInt", "Error", "Map", "Set", "WeakMap", "RegExp",
+  "URL", "Intl", "Reflect", "Proxy", "fetch", "setTimeout", "clearTimeout", "setInterval", "clearInterval",
+  "structuredClone", "queueMicrotask", "parseInt", "parseFloat", "isNaN", "isFinite", "encodeURIComponent",
+  "decodeURIComponent", "atob", "btoa",
+]
+# PascalCase names called as functions, without new
+not_constructors = ["String", "Number", "Boolean", "Symbol", "BigInt"]
+
+[functions]
+print = "console.log"
+now = { template = "new Date()" }
+# the standard library (spec/library.md §10)
+delay = { template = "new Promise<void>((resolve) => setTimeout(resolve, {{arg0}}))" }
+awaitAll = { template = "Promise.all({{arg0}})" }
+
+[modifiers]
+abstract = "abstract "
+static = "static "
+readonly = "readonly "
+declare = "declare "
+get = "get "
+set = { prefix = "set ", void = true }   # a setter never returns

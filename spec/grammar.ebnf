@@ -1,0 +1,147 @@
+(* NuclearLang base grammar v0.1
+   Implemented in crates/nuclear-syntax/src/parser.rs.
+   The lexer emits NEWLINE, INDENT and DEDENT from the indentation (2 spaces).
+   Inside ( ) [ ] { } no NEWLINE/INDENT/DEDENT are emitted, except for the block of a lambda: after
+   "=>" NEWLINE, or after "(parameters)" NEWLINE with a more indented next line. That block ends when the
+   indentation returns to the line where it started; the "," that follows is optional.
+   A line that starts with "." or ".." (cascade) continues the statement of its indentation level (it
+   first closes the more indented blocks). *)
+
+file          = { NEWLINE | item } EOF ;
+item          = use | decl | stmt ;
+                (* At the top level, a line is a declaration if it starts with two names (header words),
+                   with a PascalCase name (that is not Name.x nor Name = ...), or with name(...) followed by
+                   a type, "=" or a block. Otherwise it is a statement. *)
+
+(* ---------- use ---------- *)
+use           = "use" ( "*" "as" NAME "from" module | module | STRING )
+                [ "{" NAME { "," NAME } "}" ]
+                { "as" NAME | NAME { NAME { "," NAME } } } NEWLINE ;
+                (* use fs/promises{ readFile }     use material     use lib/lib as x
+                   use greetings/hello deferred as hello      use lib1/lib1 show foo
+                   The words after the path (show, hide, deferred) are validated by the dialect. *)
+module        = [ "@" ] NAME { ( "/" | "-" | "." ) NAME } ;     (* no spaces: @nestjs/common *)
+
+(* ---------- declarations: "header + block" ---------- *)
+decl          = { decorator NEWLINE } header decl_body ;
+header        = { WORD } [ "~" ] NAME [ generics ] [ params ]
+                [ ":" type_list ]                       (* inheritance *)
+                [ ">" type_list ]                       (* implements *)
+                [ { clause } | type ] ;                 (* clauses OR return type *)
+                (* WORD: words before the name (kinds and modifiers of the dialect).
+                   The name is the first PascalCase NAME; if all are camelCase, the last one.
+                   clause: NAME followed by another NAME on the same line (on String, with Flyer). *)
+clause        = NAME type_list ;
+decl_body     = "=" expr NEWLINE                       (* one-line function (not void); "name() = Module.method" is an alias *)
+              | NEWLINE INDENT members DEDENT          (* PascalCase name *)
+              | NEWLINE block                          (* camelCase name *)
+              | NEWLINE ;                              (* no body *)
+decorator     = "@" NAME { "." NAME } [ args ] ;
+
+params        = "(" [ param_item { ( "," | newline ) param_item } ] ")" ;
+param_item    = param | "{" param { ( "," | newline ) param } "}" ;   (* {...}: named parameters (Dart) *)
+param         = { decorator } NAME [ "?" ] [ ":" type ] [ "=" expr ] ;
+generics      = "<" generic { "," generic } ">" ;
+generic       = NAME [ ":" type ] ;                       (* <T: Comparable>: T extends Comparable *)
+
+(* ---------- members of a module ---------- *)
+members       = { NEWLINE | member } ;
+member        = { decorator NEWLINE } ( ctor | field | enum_item | method ) ;
+ctor          = params ( NEWLINE block | NEWLINE ) ;               (* (params) on its own line *)
+field         = { WORD } NAME [ "?" ] ":" type [ "=" expr ] NEWLINE ;
+enum_item     = NAME NEWLINE                                       (* no block *)
+              | NAME "(" literal { "," literal } ")" NEWLINE ;
+method        = header decl_body ;                                 (* no (params): no parameters *)
+                (* "name = value" in a module is error N0017 *)
+
+(* ---------- types ---------- *)
+type          = postfix_type { "|" postfix_type } ;
+postfix_type  = primary_type { "[" "]" | "?" } ;
+primary_type  = "<" type "," type ">"                              (* map *)
+              | NAME { "." NAME } [ "<" type_list ">" ]
+              | STRING | NUMBER                                    (* literal types *)
+              | params "=>" type                                   (* function *)
+              | "(" type ")" ;
+type_list     = type { "," type } ;
+
+(* ---------- statements ---------- *)
+block         = INDENT { NEWLINE | stmt } DEDENT ;
+stmt          = if_stmt | for_stmt | while_stmt | match | try_stmt
+              | "return" [ expr_block ] NEWLINE | "throw" expr NEWLINE
+              | "break" NEWLINE | "continue" NEWLINE
+              | "yield" [ "..." ] expr_block NEWLINE           (* the function is a generator *)
+              | assign | expr_block NEWLINE ;
+assign        = target [ ":" type ] assign_op expr_block NEWLINE ;  (* declares or reassigns (§3) *)
+target        = NAME | "$" NAME | postfix "." NAME | postfix "[" expr "]" | destructure ;  (* destructure only with "=" *)
+destructure   = "[" [ pat_item { "," pat_item } ] "]"
+              | "{" [ pat_entry { "," pat_entry } ] "}" ;
+pat_item      = NAME | "_" | destructure | "..." NAME ;          (* "..." NAME only at the end *)
+pat_entry     = NAME | ( NAME | STRING ) ":" ( NAME | destructure ) ;
+assign_op     = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "??=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | ">>>=" ;
+expr_block    = expr [ NEWLINE block { "." postfix_op [ NEWLINE block ] } ] ;
+                (* call(params) + block: the parentheses are the parameters of a lambda and the block its
+                   body: users.filter(user: User) + block. After the block the chain continues with a
+                   ".method()" line. Inside a body, name(params) Type + block is error N0016. *)
+
+if_stmt       = "if" expr NEWLINE block { "else" "if" expr NEWLINE block } [ "else" NEWLINE block ] ;
+for_stmt      = "for" NAME [ "," NAME ] "in" expr NEWLINE block ;
+while_stmt    = "while" expr NEWLINE block ;
+match         = "match" expr NEWLINE INDENT { arm } DEDENT ;
+arm           = pattern { "|" pattern } "->" ( expr NEWLINE | NEWLINE block ) ;
+pattern       = "_" | "is" type | unary ;      (* on a Result: Ok(name), Err(name), Ok(_) *)
+try_stmt      = "try" NEWLINE block [ "catch" [ NAME ] NEWLINE block ] [ "finally" NEWLINE block ] ;
+
+(* ---------- expressions (lowest to highest precedence) ---------- *)
+expr          = lambda | ternary ;
+lambda        = ( NAME | params ) "=>" ( expr | NEWLINE block )   (* expr cannot be an assignment *)
+              | params [ type ] NEWLINE block ;                    (* log = (m: string) + block;
+                                                                      onPressed = () + block *)
+ternary       = coalesce [ "?" expr ":" expr ] ;
+coalesce      = or_expr { "??" or_expr } ;
+or_expr       = and_expr { "or" and_expr } ;
+and_expr      = not_expr { "and" not_expr } ;
+not_expr      = "not" not_expr | compare ;
+compare       = range [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" | "in" ) range | "is" type | "as" type ] ;
+range         = bit_or [ ".." bit_or ] ;       (* ".." on the same line; at the start of a line it is a cascade *)     (* to call a method: (1..10).map(...); otherwise N0014 *)
+bit_or        = bit_xor { "|" bit_xor } ;
+bit_xor       = bit_and { "^" bit_and } ;
+bit_and       = shift { "&" shift } ;
+shift         = additive { ( "<<" | ">>" | ">>>" ) additive } ;   (* ">>" and ">>>" are ">" written together *)
+additive      = multiplicative { ( "+" | "-" ) multiplicative } ;
+multiplicative= unary { ( "*" | "/" | "%" | "~/" ) unary } ;     (* "~/" = integer division *)
+unary         = ( "-" | "~" | "^" ) unary | power ;   (* ~call() = await; ^x = bitwise complement *)
+power         = postfix [ "**" unary ] ;          (* right associative: -2 ** 2 = -(2 ** 2) *)
+postfix       = primary { postfix_op } [ cascade ] ;
+cascade       = section { section } ;
+section       = NEWLINE ".." NAME { postfix_op } [ assign_op expr ] ;   (* ".." at the start of a line *)
+postfix_op    = "." NAME | "?." NAME | [ "<" type_list ">" ] args | "[" expr "]" | "!" ;
+                (* "<" type_list ">" touching the name and followed by "(": FutureBuilder<String>(...);
+                   with a space before "<" it is a comparison.
+                   "!" touching the value: not null (formKey.currentState!.validate()). *)
+args          = "(" [ arg { "," arg } [ "," ] ] ")" ;
+arg           = NAME "=" expr                     (* named argument *)
+              | NAME ":" type                     (* lambda parameter: only if a block follows *)
+              | "..." expr
+              | expr ;
+primary       = literal | NAME | "$" NAME | "this" | "super"
+              | "[" [ list_item { "," list_item } [ "," ] ] "]"
+              | "{" [ obj_entry { "," obj_entry } [ "," ] ] "}"
+              | "(" expr ")"
+              | if_stmt | match ;                 (* as a value: one expression per branch *)
+list_item     = "..." expr | "if" expr expr | expr ;     (* if cond value: the item only if cond *)
+obj_entry     = NAME [ ":" expr ] | STRING ":" expr | "..." expr ;
+literal       = NUMBER | STRING | "true" | "false" | "null" ;
+
+(* ---------- tokens (crates/nuclear-syntax/src/lexer.rs) ---------- *)
+NAME          = letter { letter | digit | "_" } ;       (* letter includes Unicode and "_" *)
+NUMBER        = digit { digit | "_" } [ "." digit { digit | "_" } ] [ ( "e" | "E" ) [ "+" | "-" ] digit { digit } ]
+              | "0x" hexdigit { hexdigit | "_" }
+              | "0b" ( "0" | "1" ) { "0" | "1" | "_" } ;
+STRING        = '"' ... '"' | "'" ... "'" | '"""' ... '"""' | "'''" ... "'''"   (* both quotes are the same; ${expr} *)
+              | "r" ( '"' ... '"' | "'" ... "'" ) ;   (* raw: no escapes nor ${} (regular expressions, paths) *)
+COMMENT       = "//" ... NEWLINE { " * " ... NEWLINE } ;  (* at the start of a line it continues on " * " lines, the * below the second / *)
+(* Symbols: ( ) [ ] { } , . .. ... : ? ?. ?? ??= = == != < > <= >= + - * / % ** ~/ & | ^ << += -= *= /= %=
+   &= |= ^= <<= => -> @ ~ $ !
+   "@Name" = decorator; "~call()" = await; "$field" = attribute of the module; "value!" = not null
+   ("!" right after a name, ")" or "]").
+   && || === !== ; and "!" before a value are error N0009 with the exact fix. *)

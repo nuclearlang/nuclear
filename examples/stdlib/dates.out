@@ -1,0 +1,9 @@
+iso 2026-11-03T14:30:00.000Z
+parts 2026 11 3 14 30 true
+plus 36h 2026-11-05T02:30:00.000Z true
+days between 52
+parse 1767225600 true
+weekday 2 1970
+duration 25 1530 91800
+encode {"name":"Ana","age":31,"tags":["a","b"]}
+decode Ana b

@@ -1,0 +1,26 @@
+// Text with Nuclear's standard library: search, cut, change, pad, characters and comparison.
+capitalize(word: string) string = word.substring(0, 1).upper() + word.substring(1)
+
+main() void
+  s = "  Hello, Nuclear World  "
+  t = s.trim()
+  print("trim", "[${t}]", "[${s.trimStart()}]", "[${s.trimEnd()}]")
+  print("length", t.length, "upper", t.upper(), "lower", t.lower())
+  print("contains", "Nuclear" in t, "starts", t.startsWith("Hello"), "ends", t.endsWith("World"))
+  print("index", t.indexOf("o"), t.lastIndexOf("o"), t.indexOf("xyz"))
+  print("substring", t.substring(7, 14), "char", t[0], "code", t.codeAt(0))
+  print("split", t.split(", ").join("|"), "words", t.split(" ").length)
+  print("replace", "a-b-c".replace("-", "+"), "all", "a-b-c".replaceAll("-", "+"))
+  print("repeat", "ab".repeat(3), "pad", "7".padStart(3, "0"), "7".padEnd(3, "."))
+  print("reverse", "nuclear".chars().reversed().join(""))
+  print("capitalize", capitalize("dragonfly"))
+  print("points", "ok👍".chars().length)
+  print("from code", String.fromCodes([78, 117, 99]))
+  print("compare", "apple".compareTo("banana") < 0, "a" == "a", "".isEmpty)
+  print("fixed", 3.14159.toFixed(2), "join", [1, 2, 3].join(", "))
+  print("numbers", "42".toInt(), "x".toInt(), "2.5".toDouble())
+  text = """
+    multi-line
+      keeps the inner indentation
+    """
+  print(text.trim().split("\n").length)

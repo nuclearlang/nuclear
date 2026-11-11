@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-06",
+  "runs": 5,
+  "programs": {
+    "primes": {
+      "nuclear_lines": 21,
+      "langs": {
+        "ts": {
+          "generated_ms": 111.4,
+          "hand_ms": 106.3,
+          "same_output": true,
+          "generated_lines": 28,
+          "hand_lines": 21
+        },
+        "dart": {
+          "generated_ms": 135.0,
+          "hand_ms": 137.5,
+          "same_output": true,
+          "generated_lines": 28,
+          "hand_lines": 20
+        },
+        "py": {
+          "generated_ms": 2122.0,
+          "hand_ms": 2099.0,
+          "same_output": true,
+          "generated_lines": 32,
+          "hand_lines": 20
+        }
+      }
+    },
+    "wordfreq": {
+      "nuclear_lines": 16,
+      "langs": {
+        "ts": {
+          "generated_ms": 109.0,
+          "hand_ms": 100.4,
+          "same_output": true,
+          "generated_lines": 44,
+          "hand_lines": 21
+        },
+        "dart": {
+          "generated_ms": 65.1,
+          "hand_ms": 64.2,
+          "same_output": true,
+          "generated_lines": 39,
+          "hand_lines": 19
+        },
+        "py": {
+          "generated_ms": 325.3,
+          "hand_ms": 292.3,
+          "same_output": true,
+          "generated_lines": 49,
+          "hand_lines": 17
+        }
+      }
+    }
+  }
+}

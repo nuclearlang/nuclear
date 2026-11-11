@@ -1,0 +1,4 @@
+lib/generated/
+.dart_tool/
+# Widget Preview related
+.widget_preview/

@@ -1,0 +1,19 @@
+[package]
+name = "nuclear-cli"
+description = "The `nuclear` binary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "nuclear"
+path = "src/main.rs"
+
+[dependencies]
+nuclear-diag.workspace = true
+nuclear-syntax.workspace = true
+nuclear-dialect.workspace = true
+nuclear-transpile.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,105 @@
+# The tasks of thesis A (README.md): the same functional spec is given to an agent twice, once to write it in
+# NuclearLang with Dragonfly (arm `nuclear`) and once in the target technology directly (arm `native`). Both arms
+# are verified by the target's own tools; `green` means every verify command exits 0.
+#   spec:     what the app must do, shared by both arms (the only text the arms have in common)
+#   project:  "empty" (an empty folder) or a path (copied; `$HOME` allowed)
+#   prompt:   the arm's framing, before the spec
+#   verify:   shell commands run in the copy after the agent; all must exit 0 ($FIXTURES = tools/agent-eval/fixtures)
+
+[[task]]
+id = "backend-api"
+title = "A tasks API from scratch"
+spec = """Build an HTTP API for a to-do list with SQLite. Routes: POST /tasks (body: title, min 3 characters, answers \
+201 with the task), GET /tasks (list, optional ?done=true|false filter), GET /tasks/{id} (404 when missing), \
+PATCH /tasks/{id} (body: done), DELETE /tasks/{id}. Every task has id, title, done (default false) and createdAt. \
+Write automated tests that cover a create, the 404 and the done filter, and make them pass."""
+
+[task.nuclear]
+project = "empty"
+dialect = "fastapi"
+prompt = "Write it in NuclearLang for the Dragonfly backend platform (dragonfly(platform = \"backend\", dialect = \"fastapi\")): components with entities, repositories, use cases, an appcomponent and a controller; tests in test/*_test.nuc. Build with `nuclear build .` and run the tests with `dragonfly test`."
+verify = [
+  "nuclear build . 2>&1 | grep -qv 'error\\['",
+  "dragonfly test 2>&1 | grep -qE 'passed'",
+]
+
+[task.native]
+project = "empty"
+prompt = "Write it in Python 3.12 with FastAPI, SQLAlchemy 2 (async) and pytest (httpx test client). Create a virtual environment in .venv, install what you need there, and run the tests with `.venv/bin/pytest`."
+verify = [
+  ".venv/bin/pytest -q 2>&1 | grep -qE '[1-9][0-9]* passed'",
+]
+
+[[task]]
+id = "mobile-app"
+title = "A characters app from scratch"
+spec = """Build a mobile app that lists the characters of https://rickandmortyapi.com/api/character (name, status, \
+image) with a loading state and an error state, a detail page opened from the list that shows the character's \
+species, gender and origin, and a 'next page' button. The data layer (the API client) must have unit tests with a \
+fake HTTP client that check a successful page and a failed request. Make the tests pass."""
+
+[task.nuclear]
+project = "empty"
+dialect = "flutter"
+prompt = "Write it in NuclearLang for the Dragonfly mobile platform (dragonfly(platform = \"mobile\", dialect = \"flutter\")): create the project with `dragonfly new`, use a repository with @get, use cases, an appcomponent, a state model and a statemanager, screens with @screen, and tests in test/*_test.nuc. Check with `dragonfly check` and run the tests with `dragonfly test`."
+verify = [
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "dragonfly test 2>&1 | grep -q 'All tests passed'",
+]
+
+[task.native]
+project = "empty"
+prompt = "Write it in Dart with Flutter: create the project with `flutter create`, use dio (or http) for the API, flutter_bloc or provider for the state, go_router for the pages, and flutter_test with a fake client for the tests. Run `flutter analyze` and `flutter test`."
+verify = [
+  "! flutter analyze 2>&1 | grep -q ' error • '",
+  "flutter test 2>&1 | grep -q 'All tests passed'",
+]
+
+[[task]]
+id = "web-app"
+title = "A characters web app from scratch"
+spec = """Build a web app that lists the characters of https://rickandmortyapi.com/api/character (name, status, image) \
+with loading and error states, a detail page at /characters/:id, and a 'next page' button. The data layer must \
+have tests with a canned fetch that check a successful page and a failed request. Make the tests pass."""
+
+[task.nuclear]
+project = "empty"
+dialect = "react"
+prompt = "Write it in NuclearLang for the Dragonfly web platform (dragonfly(platform = \"web\", dialect = \"react\")): a repository with @get, use cases, an appcomponent, a state model, a statemanager, screens with @screen and tests in test/*_test.nuc. Build with `nuclear build .`, then in build/app run `npm install` and `npm test`."
+verify = [
+  "nuclear build . 2>&1 | grep -qv 'error\\['",
+  "cd build/app && npm test 2>&1 | grep -qE 'Tests +[1-9][0-9]* passed'",
+]
+
+[task.native]
+project = "empty"
+prompt = "Write it in TypeScript with React 19, React Router 7 and Vite; tests with Vitest and Testing Library. Run `npm install` and `npm test`."
+verify = [
+  "npm test 2>&1 | grep -qE 'Tests +[1-9][0-9]* passed'",
+]
+
+[[task]]
+id = "mobile-feature"
+title = "A feature in an existing app"
+spec = """In the existing characters app, add chips above the characters list to filter by status (all, alive, dead, \
+unknown); the API accepts a status query parameter in GET /character. The list reloads with the filter and the \
+existing tests keep passing; add a test for the filter in the data layer."""
+
+[task.nuclear]
+project = "$HOME/Documents/projects/nuc/flutter/rick_and_morty"
+dialect = "flutter"
+prompt = "This folder is a NuclearLang project (Dragonfly mobile, dialect flutter). Check with `dragonfly check` and run `dragonfly test`."
+verify = [
+  "grep -rq 'status' components/characters/data",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "dragonfly test 2>&1 | grep -q 'All tests passed'",
+]
+
+[task.native]
+project = "$HOME/Documents/projects/nuc/flutter/rick_and_morty/build/app"
+prompt = "This folder is a Flutter project (Dart, flutter_bloc, go_router, dio). Run `flutter analyze` and `flutter test`."
+verify = [
+  "grep -rq 'status' lib/components/characters/data",
+  "! flutter analyze 2>&1 | grep -q ' error • '",
+  "flutter test 2>&1 | grep -q 'All tests passed'",
+]

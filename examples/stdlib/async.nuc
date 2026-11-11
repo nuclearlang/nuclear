@@ -1,0 +1,23 @@
+// Asynchronous code and generators: ~ waits, a function that waits is async by itself.
+slow(ms: int, value: string) string
+  ~delay(ms)
+  value
+
+fetchBoth() string[]
+  ~awaitAll([slow(20, "a"), slow(10, "b")])
+
+squares(limit: int) int
+  for i in 0..limit
+    yield i * i
+
+safe() string
+  try
+    ~slow(1, "x")
+    throw Error("boom")
+  catch e
+    "caught ${e.message}"
+
+main() void
+  print("all", (~fetchBoth()).join(","))
+  print("generator", [...squares(5)].join(","))
+  print("error", ~safe())

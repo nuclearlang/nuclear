@@ -1,0 +1,82 @@
+# Editor documentation of the typescript dialect: what the editor shows for each header word.
+# Markdown, in English. Not part of the dialect's rules: the loader skips docs.toml and a build never
+# reads it (Dialect::doc, spec/dialects.md §5.7). Rules: spec/typescript.md.
+
+[words]
+
+abstract = '''
+`abstract`: a module that cannot be built; other modules extend it. Methods without a body are the
+ones each subclass must write.
+
+```nuclear
+abstract Shape
+  area() number
+
+Circle: Shape
+  (radius: number)
+  area() number
+    3.14 * radius * radius
+```
+
+```typescript
+export abstract class Shape {
+  abstract area(): number;
+}
+```
+'''
+
+static = '''
+`static`: a member of the module itself, not of each object. Called on the module: `Ids.take()`.
+
+```nuclear
+Ids
+  static next: int = 0
+  static take() int
+    next += 1
+    next
+```
+'''
+
+readonly = '''
+`readonly`: a field that cannot be assigned after the constructor.
+
+```nuclear
+User
+  readonly id: string
+```
+'''
+
+declare = '''
+`declare`: a field that exists at run time but that this class does not initialize (a decorator or
+a framework sets it).
+'''
+
+get = '''
+`get`: a **getter**, a member read like a field but computed on every read.
+
+```nuclear
+Circle
+  (radius: number)
+  get area() number
+    3.14 * radius * radius
+
+c.area           // no parentheses
+```
+
+```typescript
+get area(): number {
+  return 3.14 * this.radius * this.radius;
+}
+```
+'''
+
+set = '''
+`set`: a **setter**, code that runs when a value is assigned to the member. It never returns.
+
+```nuclear
+Temperature
+  celsius: number = 0
+  set fahrenheit(value: number)
+    celsius = (value - 32) / 1.8
+```
+'''

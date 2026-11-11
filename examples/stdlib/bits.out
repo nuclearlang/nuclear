@@ -1,0 +1,8 @@
+has write true has exec false
+toggle 7 clear 1
+shl 1024 shr 128 ushr 15
+not -6 xor swap 6
+popcount 8 3
+rgb 51 102 153
+compound 8
+power of two true false

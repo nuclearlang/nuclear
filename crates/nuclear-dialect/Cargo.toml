@@ -1,0 +1,15 @@
+[package]
+name = "nuclear-dialect"
+description = "NuclearLang dialect files: loading, inheritance, validation and the template engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+nuclear-diag.workspace = true
+nuclear-syntax.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true

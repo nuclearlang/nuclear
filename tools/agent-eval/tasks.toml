@@ -1,0 +1,125 @@
+# Tasks of the agent evaluation (README.md). Each runs in a fresh copy of its project.
+#   project: "rick_and_morty" (a Dragonfly app, copied with its build/app) or "empty" (an empty folder, with
+#            `dialect` for `nuclear agent init` in the agent mode)
+#   prompt:  what the agent is asked, the same in every mode
+#   verify:  shell commands run in the copy after the agent; all must exit 0 for the task to be green
+#            ($FIXTURES is tools/agent-eval/fixtures)
+
+[[task]]
+id = "location-detail"
+project = "rick_and_morty"
+prompt = """Add a detail screen for a location at the route /locations/:id. It shows the location's name, type, \
+dimension and how many residents it has, loaded with a new use case of the locations component. Tapping a \
+location in the list opens it."""
+verify = [
+  "grep -rq '/locations/:id' components/locations",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "episodes-cache"
+project = "rick_and_morty"
+prompt = """Cache the episodes list requests for 5 minutes, and add a pull-to-refresh to the episodes screen that \
+reloads the current page skipping the cache."""
+verify = [
+  "grep -rqE 'minutes = 5' components/episodes/data",
+  "grep -rq 'RefreshIndicator' components/episodes/presentation",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "feedback-form"
+project = "rick_and_morty"
+prompt = """Add a feedback screen at /feedback with a form: email (required, a valid email) and message \
+(required, at least 10 characters). The Send button is enabled only when the form is valid and shows a dialog \
+that says thanks. Put it in a new component called feedback."""
+verify = [
+  "test -d components/feedback",
+  "grep -rq '@email' components/feedback",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "favorite-event"
+project = "rick_and_morty"
+prompt = """Create a global event FavoriteAdded with the character id, publish it from a favorite icon button in \
+the app bar of the character detail screen, and add a global component that logs every FavoriteAdded with \
+Log.i."""
+verify = [
+  "grep -rq 'FavoriteAdded' shared",
+  "grep -rq '@on(FavoriteAdded)' shared",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "random-tests"
+project = "rick_and_morty"
+prompt = """Write tests in Nuclear for GetRandomCharacterUseCase: mock CharacterRepository and check both a \
+successful character and an error from the repository. Run them."""
+verify = [
+  "ls test/*.nuc",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "dragonfly test 2>&1 | grep -q 'All tests passed'",
+]
+
+[[task]]
+id = "fan-guard"
+project = "rick_and_morty"
+prompt = """Only users whose session has the role "fan" may open the episodes screen. Write a guard for it, and \
+send everyone else to a new shared page /denied that explains why."""
+verify = [
+  "ls shared/guards/*.nuc",
+  "grep -rq '/denied' shared",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "status-filter"
+project = "rick_and_morty"
+prompt = """In the characters list, add chips to filter by status (all, alive, dead, unknown) above the list. \
+The API accepts a status query parameter in GET /character."""
+verify = [
+  "grep -rq 'status' components/characters/data",
+  "dragonfly check --json | grep -qx '\\[\\]'",
+  "! dragonfly analyze 2>&1 | grep -q ' error • '",
+]
+
+[[task]]
+id = "ts-stats"
+project = "empty"
+dialect = "typescript"
+prompt = """Write stats.nuc in NuclearLang for the typescript dialect with three functions: mean(xs: number[]), \
+median(xs) and stddev(xs) (population standard deviation). Transpile it to stats.ts with the nuclear CLI."""
+verify = [
+  "nuclear build stats.nuc --dialect typescript -o stats.ts",
+  "cp $FIXTURES/stats_check.ts . && node stats_check.ts",
+]
+
+[[task]]
+id = "ts-text"
+project = "empty"
+dialect = "typescript"
+prompt = """Write text.nuc in NuclearLang for the typescript dialect with slugify(text: string) string (lowercase, \
+only a-z, 0-9 and single dashes, no dashes at the ends), wordCount(text: string) int, and isPalindrome(text: \
+string) boolean that ignores case, spaces and punctuation. Transpile it to text.ts with the nuclear CLI."""
+verify = [
+  "nuclear build text.nuc --dialect typescript -o text.ts",
+  "cp $FIXTURES/text_check.ts . && node text_check.ts",
+]
+
+[[task]]
+id = "dart-csv"
+project = "empty"
+dialect = "dart"
+prompt = """Write csv.nuc in NuclearLang for the dart dialect with parseCsv(text: string) that returns a list of \
+maps from the header row to each value (string keys and values; fields may be quoted with double quotes and \
+contain commas). Transpile it to csv.dart with the nuclear CLI."""
+verify = [
+  "nuclear build csv.nuc --dialect dart -o csv.dart",
+  "cp $FIXTURES/csv_check.dart . && dart run csv_check.dart",
+]

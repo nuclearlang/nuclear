@@ -1,0 +1,344 @@
+# dart dialect: how each Nuclear construct is written in Dart 3.
+# A "target" dialect: it defines every [syntax] template. flutter extends it.
+# Format and variables: spec/dialects.md or `nuclear spec`.
+
+[dialect]
+name = "dart"
+description = "Dart 3"
+file_extension = "dart"
+# type definitions (spec/definitions.md): packages of the repository defs/dart/<package>/<version>/.
+# They give the automatic imports, the inherited members and the @override of the SDK classes.
+defs = ["dart@3.13.5"]
+indent = "  "
+
+[options]
+implicit_self = true              # in Dart members are used without this.
+named_args = "native"             # f(x = 1) → f(x: 1)
+declare_ctor_fields = true        # User(name: string) → String name; User(this.name);
+const_collection_defaults = true  # history: Message[] = [] → [this.history = const []]
+optional_params_nullable = true   # name?: string → String? name
+binary_literals = false           # Dart has no 0b1010: written as 0xa
+string_quote = "'"
+interp_quote = "'"
+dollar_escape = "always"
+reserved_escape = "suffix"
+max_bases = 1
+catch_var = "error"
+toplevel_statements = "main"      # loose statements go inside main()
+omit_null_default = true          # String? data = null → String? data
+interp_bare_names = true           # '${name}' → '$name'
+super_in_initializer = true        # super(x) at the start of the constructor → User(...) : super(x)
+implicit_base = "Object"          # every class extends Object: toString() gets @override
+
+[syntax]
+# --- imports ---
+import_alias = "import '{{module}}'{{#clauses.deferred}} deferred{{/clauses.deferred}} as {{alias}}{{#clauses.show}} show {{clauses.show}}{{/clauses.show}}{{#clauses.hide}} hide {{clauses.hide}}{{/clauses.hide}};"
+import_default = "import '{{module}}'{{#names}} show {{names}}{{/names}}{{#clauses.show}} show {{clauses.show}}{{/clauses.show}}{{#clauses.hide}} hide {{clauses.hide}}{{/clauses.hide}};"
+import_file = "import '{{path}}';"
+module_path = "package:{{path}}.dart"
+file_path = "{{path}}.dart"
+project_import = "package:{{project}}/{{path}}.dart"
+
+# --- declarations ---
+export = ""
+class = """
+{{decorators}}{{modifiers}}class {{name}}{{generics}}{{#extends}} extends {{extends}}{{/extends}}{{clauses}}{{#implements}} implements {{implements}}{{/implements}} {{{#members}}
+  {{members}}
+{{/members}}}"""
+interface = """
+{{decorators}}abstract class {{name}}{{generics}}{{#extends}} implements {{extends}}{{/extends}} {{{#members}}
+  {{members}}
+{{/members}}}"""
+interface_field = "{{type}}{{#optional}}?{{/optional}} get {{name}};"
+interface_method = "{{#ret}}{{ret}}{{/ret}}{{^ret}}void{{/ret}} {{name}}{{generics}}({{params}});"
+enum = """
+enum {{name}} {
+  {{items}}{{#values}};
+
+  const {{name}}(this.value);
+
+  final {{value_type}} value;{{/values}}
+}"""
+enum_item = "{{name}}{{#value}}({{value}}){{/value}}"
+function = """
+{{decorators}}{{#ret}}{{ret}} {{/ret}}{{name}}{{generics}}({{params}}){{#generator}}{{#async}} async*{{/async}}{{^async}} sync*{{/async}}{{/generator}}{{^generator}}{{#async}} async{{/async}}{{/generator}} {
+  {{body}}
+}"""
+# get/set are not written in {{modifiers}}: they go between the type and the name (`Color get color`)
+method = """
+{{decorators}}{{#override}}@override
+{{/override}}{{^override}}{{#override_interface}}@override
+{{/override_interface}}{{/override}}{{modifiers}}{{#ret}}{{ret}} {{/ret}}{{#mods.get}}get {{name}}{{/mods.get}}{{^mods.get}}{{#mods.set}}set {{/mods.set}}{{name}}{{generics}}({{params}}){{/mods.get}}{{#generator}}{{#async}} async*{{/async}}{{^async}} sync*{{/async}}{{/generator}}{{^generator}}{{#async}} async{{/async}}{{/generator}} {
+  {{body}}
+}"""
+method_signature = """
+{{decorators}}{{#override}}@override
+{{/override}}{{^override}}{{#override_interface}}@override
+{{/override_interface}}{{/override}}{{modifiers}}{{#ret}}{{ret}} {{/ret}}{{#mods.get}}get {{name}}{{/mods.get}}{{^mods.get}}{{#mods.set}}set {{/mods.set}}{{name}}{{generics}}({{params}}){{/mods.get}};"""
+field = "{{decorators}}{{modifiers}}{{#uninitialized}}late {{/uninitialized}}{{#type}}{{type}}{{#optional}}?{{/optional}}{{/type}}{{^type}}var{{/type}} {{name}}{{#default}} = {{default}}{{/default}};"
+constructor = """
+{{class_name}}({{params}}){{#initializer}} : {{initializer}}{{/initializer}}{{#body}} {
+  {{body}}
+}{{/body}}{{^body}};{{/body}}"""
+ctor_param = "{{#required}}required {{/required}}this.{{name}}{{#default}} = {{default}}{{/default}}"
+super_param = "{{#required}}required {{/required}}super.{{name}}{{#default}} = {{default}}{{/default}}"
+param = "{{decorators}}{{#required}}required {{/required}}{{#type}}{{type}} {{/type}}{{name}}{{#default}} = {{default}}{{/default}}"
+params_optional_group = "[{{params}}]"
+params_named_group = "{{{params}}}"
+# @Name without arguments names a class: Dart calls its const constructor (@EpochConverter → @EpochConverter())
+decorator = "@{{name}}{{#has_args}}({{args}}){{/has_args}}{{^has_args}}{{#pascal}}(){{/pascal}}{{/has_args}}"
+generics = "<{{names}}>"
+generic_param = "{{name}}{{#bound}} extends {{bound}}{{/bound}}"
+main = """
+void main() {
+  {{body}}
+}"""
+comment = "// {{text}}"
+doc_comment = { file = "templates/doc_comment.tpl" }
+
+# --- statements ---
+const_decl = "final {{#type}}{{type}} {{/type}}{{name}} = {{value}};"
+let_decl = "{{#type}}{{type}}{{/type}}{{^type}}var{{/type}} {{name}} = {{value}};"
+declare = "{{#type}}{{type}}{{/type}}{{^type}}var{{/type}} {{name}};"
+assign = "{{target}} {{op}} {{value}};"
+expr_stmt = "{{expr}};"
+return = "return{{#value}} {{value}}{{/value}};"
+if = """
+if ({{cond}}) {
+  {{body}}
+}"""
+else_if = """
+ else if ({{cond}}) {
+  {{body}}
+}"""
+else = """
+ else {
+  {{body}}
+}"""
+for_in = """
+for (final {{var}} in {{iter}}) {
+  {{body}}
+}"""
+for_range = """
+for (var {{var}} = {{start}}; {{var}} < {{end}}; {{var}}++) {
+  {{body}}
+}"""
+for_entries = """
+for (final MapEntry(key: {{key}}, value: {{value}}) in {{iter}}.entries) {
+  {{body}}
+}"""
+while = """
+while ({{cond}}) {
+  {{body}}
+}"""
+try = """
+try {
+  {{body}}
+}{{#catch}} catch ({{catch_var}}) {
+  {{catch_body}}
+}{{/catch}}{{#finally}} finally {
+  {{finally_body}}
+}{{/finally}}"""
+throw = "throw {{value}};"
+break = "break;"
+continue = "continue;"
+yield = "yield {{value}};"
+yield_all = "yield* {{value}};"
+
+# --- expressions ---
+self_member = "this.{{name}}"
+this = "this"
+super = "super"
+null = "null"
+true = "true"
+false = "false"
+list = "[{{items}}]"
+object = "{{{entries}}}"
+object_entry = "{{key}}: {{value}}"
+object_key_ident = "'{{key}}'"
+object_key_string = "'{{key}}'"
+object_shorthand = "'{{key}}': {{key}}"
+object_spread = "...{{expr}}"
+call = "{{callee}}({{args}})"
+construct = "{{callee}}({{args}})"
+named_arg = "{{name}}: {{value}}"
+spread_arg = "...{{expr}}"
+list_if = "if ({{cond}}) {{value}}"
+cascade = """
+{{target}}
+{{#sections}}
+  .{{.}}
+{{/sections}}"""
+cascade_self = ""
+pattern_ignore = "_"
+pattern_assign = "{{target}} = {{value}};"
+member = "{{object}}.{{name}}"
+optional_member = "{{object}}?.{{name}}"
+index = "{{object}}[{{index}}]"
+await = "await {{expr}}"
+ternary = "{{cond}} ? {{then}} : {{else}}"
+is = "{{expr}} is {{type}}"
+cast = "{{expr}} as {{type}}"
+non_null = "{{expr}}!"
+lambda = """
+({{params}}){{#async}} async{{/async}} {
+  {{body}}
+}"""
+lambda_expr = "({{params}}){{#async}} async{{/async}} => {{expr}}"
+
+# --- Result<T, E> (spec/nuclear-base.md §3.2) ---
+# Nuclear's Result<E, T> is fpdart's Either<E, T>: Ok(v) → Right(v), Err(e) → Left(e).
+# No runtime of its own: the app depends on fpdart.
+result_err = "Left({{value}})"
+result_is_ok = "{{result}}.isRight()"
+result_is_err = "{{result}}.isLeft()"
+result_value = "({{result}} as Right<{{err}}, {{ok}}>).value"
+result_error = "({{result}} as Left<{{err}}, {{ok}}>).value"
+result_propagate = "if ({{result}} case Left(:final value)) return Left(value);"
+result_then = "{{target}}.flatMap({{callback}})"
+result_tap = """
+{{target}}.map((value) {
+  ({{callback}})(value);
+  return value;
+})"""
+result_recover = "{{target}}.orElse({{callback}})"
+result_tap_error = """
+{{target}}.mapLeft((error) {
+  ({{callback}})(error);
+  return error;
+})"""
+result_map = "{{target}}.map({{callback}})"
+result_get_or_else = "{{target}}.getOrElse({{callback}})"
+result_ok = "Right({{#value}}{{value}}{{/value}}{{^value}}null{{/value}})"
+
+[types]
+Result = "Either"
+Error = "NuclearError"
+string = "String"
+int = "int"
+double = "double"
+number = "num"
+boolean = "bool"
+bool = "bool"
+void = "void"
+any = "dynamic"
+dynamic = "dynamic"
+unknown = "dynamic"
+list = "List<{{item}}>"
+map = "Map<{{key}}, {{value}}>"
+nullable = "{{type}}?"
+union = "Object"
+string_literal = "String"
+number_literal = "num"
+function = "{{ret}} Function({{params}})"
+generic = "{{name}}<{{args}}>"
+async = "Future<{{type}}>"
+Bytes = "Uint8List"
+Regex = "RegExp"
+Match = "RegExpMatch"
+generator = "Iterable<{{type}}>"
+async_generator = "Stream<{{type}}>"
+
+[operators]
+and = "&&"
+or = "||"
+not = "!"
+neg = "-"
+eq = "=="
+not_eq = "!="
+lt = "<"
+gt = ">"
+lt_eq = "<="
+gt_eq = ">="
+add = "+"
+sub = "-"
+mul = "*"
+div = "/"
+rem = "%"
+coalesce = "??"
+int_div = "~/"
+# pow of dart:math returns num: .toInt() / .toDouble() when the operands' types say which
+pow = "pow({{left_arg}}, {{right_arg}}){{#int}}.toInt(){{/int}}{{#double}}.toDouble(){{/double}}"
+bit_and = "&"
+bit_or = "|"
+bit_xor = "^"
+bit_not = "~"
+shl = "<<"
+shr = ">>"
+ushr = ">>>"
+in = "{{#map}}{{right}}.containsKey({{left}}){{/map}}{{#object}}{{right}}.containsKey({{left}}){{/object}}{{^map}}{{^object}}{{right}}.contains({{left}}){{/object}}{{/map}}"
+range = "List.generate({{right}} - {{left}}, (i) => {{left}} + i)"
+
+[functions]
+# print takes one value in Dart: several are joined with spaces, like console.log
+print = { template = "print({{^arg0}}''{{/arg0}}{{#arg1}}[{{args}}].join(' '){{/arg1}}{{^arg1}}{{args}}{{/arg1}})" }
+# the standard library (spec/library.md §10)
+delay = { template = "Future<void>.delayed(Duration(milliseconds: {{arg0}}))" }
+awaitAll = { template = "Future.wait({{arg0}})" }
+
+[names]
+# dart:core functions: they exist without importing them
+globals = ["print", "identical", "identityHashCode"]
+# names written by the Result templates: imported from fpdart when the code uses them
+written = ["Either", "Right", "Left", "pow", "sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "exp", "log", "ln10", "ln2", "min", "max", "pi", "Random", "jsonEncode", "jsonDecode", "utf8", "base64", "Uint8List"]
+
+[modifiers]
+abstract = "abstract "
+static = "static "
+late = "late "
+final = "final "
+const = "const "
+sealed = "sealed "
+base = "base "
+external = "external "
+factory = "factory "
+covariant = "covariant "
+get = ""
+set = { prefix = "", void = true }   # a setter never returns
+
+[clauses]
+with = " with {{types}}"
+
+[use]
+clauses = ["show", "hide", "deferred"]
+
+# extension NumberParsing on String
+[kinds.extension]
+description = "extension NumberParsing on String → extension NumberParsing on String { ... }"
+template = { file = "templates/extension.tpl" }
+
+# mixin Flyer on Animal
+[kinds.mixin]
+description = "mixin Flyer on Animal → mixin Flyer on Animal { ... }"
+template = { file = "templates/mixin.tpl" }
+
+# Code generation: `data User` + fields → constructor, copyWith and toJson.
+[kinds.data]
+description = "data User + fields → immutable class with constructor, copyWith and toJson"
+template = { file = "templates/data.tpl" }
+
+# what fpdart exports besides the Result names: a model of the project named like one of them (`Task`) hides it
+[exports]
+"package:fpdart/fpdart.dart" = ["Task", "TaskEither", "TaskOption", "Option", "Some", "None", "State", "Reader", "IO", "IOEither", "IOOption", "Unit", "Identity", "Predicate", "Endo", "Monoid", "Semigroup", "Order", "Eq", "Tuple2", "ReaderTask", "StateAsync"]
+
+[auto_imports]
+"package:fpdart/fpdart.dart" = ["Either", "Right", "Left"]
+
+# projects (spec/projects.md): the .nuc files go to lib/, as in a Dart package
+[project]
+sources = "lib"
+
+# API reference of the automatic imports (editor hover): module prefix → URL
+[docs]
+"dart:" = "https://api.flutter.dev/flutter/dart-{{library}}/{{name}}{{#class}}-class{{/class}}.html"
+
+[imports]
+async = "dart:async"
+collection = "dart:collection"
+convert = "dart:convert"
+io = "dart:io"
+math = "dart:math"
+typed_data = "dart:typed_data"
+
+# Automatic imports come from the type definitions (defs = ["dart@..."]): every public name
+# of dart:async, dart:math, dart:io... is imported on its own when used.

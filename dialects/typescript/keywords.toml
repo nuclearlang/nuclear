@@ -1,0 +1,93 @@
+# TypeScript 5.6 reserved words and how they are produced from Nuclear.
+# Source: https://github.com/microsoft/TypeScript/blob/main/src/compiler/scanner.ts
+# Inherited by the typescript, nodejs and nestjs dialects. Format: spec/reserved-words.md.
+# `level` reserved/strict: a Nuclear name with that word is renamed (options.reserved_escape).
+
+[keywords]
+# --- reserved ---
+break      = { level = "reserved", via = "base" }
+case       = { level = "reserved", via = "auto", note = "generated from match" }
+catch      = { level = "reserved", via = "base" }
+class      = { level = "reserved", via = "auto", note = "module with code → class" }
+const      = { level = "reserved", via = "auto", note = "variable never reassigned (x = 1) → const x = 1" }
+continue   = { level = "reserved", via = "base" }
+debugger   = { level = "reserved", via = "builtin", nuclear = "debugger()" }
+default    = { level = "reserved", via = "auto", note = "the _ arm of match" }
+delete     = { level = "reserved", via = "builtin", nuclear = "delete(config.token)" }
+do         = { level = "reserved", via = "none", note = "while covers the case" }
+else       = { level = "reserved", via = "base" }
+enum       = { level = "reserved", via = "auto", note = "module with only items → enum" }
+export     = { level = "reserved", via = "auto", note = "every top-level declaration is exported" }
+extends    = { level = "reserved", via = "base", nuclear = "Admin: User" }
+false      = { level = "reserved", via = "base" }
+finally    = { level = "reserved", via = "base" }
+for        = { level = "reserved", via = "base", note = "for x in list → for (const x of list)" }
+function   = { level = "reserved", via = "auto", note = "top-level camelCase declaration" }
+if         = { level = "reserved", via = "base" }
+import     = { level = "reserved", via = "auto", note = "use + automatic imports" }
+in         = { level = "reserved", via = "base", nuclear = "x in list → list.includes(x)" }
+instanceof = { level = "reserved", via = "auto", note = "x is User → x instanceof User" }
+new        = { level = "reserved", via = "auto", note = "calling a PascalCase name → new" }
+null       = { level = "reserved", via = "base" }
+return     = { level = "reserved", via = "auto", note = "implicit return; explicit return is also base" }
+super      = { level = "reserved", via = "base" }
+switch     = { level = "reserved", via = "none", note = "match is emitted as if / else if" }
+this       = { level = "reserved", via = "auto", note = "implicit this for members; $field makes it explicit" }
+throw      = { level = "reserved", via = "base" }
+true       = { level = "reserved", via = "base" }
+try        = { level = "reserved", via = "base" }
+typeof     = { level = "reserved", via = "builtin", nuclear = "typeof(x) == 'string'" }
+var        = { level = "reserved", via = "none", note = "Nuclear has no var; the transpiler emits const or let" }
+void       = { level = "reserved", via = "type" }
+while      = { level = "reserved", via = "base" }
+with       = { level = "reserved", via = "none", note = "obsolete in JS; never emitted" }
+
+# --- strict: reserved in modules ---
+implements = { level = "strict", via = "base", nuclear = "Circle > Shape" }
+interface  = { level = "strict", via = "auto", note = "module with only attributes and signatures → interface" }
+let        = { level = "strict", via = "auto", note = "x = 1 reassigned later → let x = 1" }
+package    = { level = "strict", via = "none" }
+private    = { level = "strict", via = "none", note = "Nuclear has no visibility" }
+protected  = { level = "strict", via = "none", note = "Nuclear has no visibility" }
+public     = { level = "strict", via = "auto", note = "constructor parameters → public name: T" }
+static     = { level = "strict", via = "modifier", nuclear = "static create() User" }
+yield      = { level = "strict", via = "base", nuclear = "yield value / yield ...others", note = "a function with yield is a generator (function*)" }
+
+# --- contextual ---
+abstract   = { level = "contextual", via = "modifier", nuclear = "abstract Repo" }
+accessor   = { level = "contextual", via = "todo", note = "decorator auto-accessors" }
+any        = { level = "contextual", via = "type" }
+as         = { level = "contextual", via = "base" }
+asserts    = { level = "contextual", via = "todo", note = "type assertion functions" }
+async      = { level = "contextual", via = "auto", note = "added if the function uses ~" }
+await      = { level = "contextual", via = "auto", note = "~call()" }
+bigint     = { level = "contextual", via = "type" }
+boolean    = { level = "contextual", via = "type" }
+constructor = { level = "contextual", via = "auto", note = "generated from the module's (params)" }
+declare    = { level = "contextual", via = "modifier", nuclear = "declare apiKey: string" }
+from       = { level = "contextual", via = "base" }
+get        = { level = "contextual", via = "modifier", nuclear = "get fullName() string" }
+global     = { level = "contextual", via = "todo", note = "declare global" }
+infer      = { level = "contextual", via = "todo", note = "conditional types" }
+intrinsic  = { level = "contextual", via = "none", note = "internal use of the TS compiler" }
+is         = { level = "contextual", via = "base", nuclear = "x is User" }
+keyof      = { level = "contextual", via = "todo", note = "type operators: keyof, mapped types" }
+module     = { level = "contextual", via = "none", note = "ES modules are used" }
+namespace  = { level = "contextual", via = "todo", note = "namespace Utils" }
+never      = { level = "contextual", via = "type" }
+number     = { level = "contextual", via = "type" }
+object     = { level = "contextual", via = "type" }
+of         = { level = "contextual", via = "auto", note = "for x in list → for...of" }
+out        = { level = "contextual", via = "todo", note = "in/out variance annotations" }
+override   = { level = "contextual", via = "auto", note = "methods listed in a kind's overrides" }
+readonly   = { level = "contextual", via = "modifier", nuclear = "readonly id: string" }
+require    = { level = "contextual", via = "none", note = "Nuclear emits ES modules" }
+satisfies  = { level = "contextual", via = "todo", note = "config = { ... } satisfies Config" }
+set        = { level = "contextual", via = "modifier", nuclear = "set fullName(value: string)" }
+string     = { level = "contextual", via = "type" }
+symbol     = { level = "contextual", via = "type" }
+type       = { level = "contextual", via = "base" }
+undefined  = { level = "contextual", via = "type", note = "Nuclear only has null as a value" }
+unique     = { level = "contextual", via = "todo", note = "unique symbol" }
+unknown    = { level = "contextual", via = "type" }
+using      = { level = "contextual", via = "todo", note = "explicit resource management" }

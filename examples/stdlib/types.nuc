@@ -1,0 +1,44 @@
+// Types at run time: is, as, generics and interfaces, with the library on typed values.
+Shape
+  area() double
+
+Circle(radius: double) > Shape
+  area() double
+    Math.pi * radius ** 2
+
+Square(side: double) > Shape
+  area() double
+    side ** 2
+
+Box<T>(value: T)
+  map<R>(f: (value: T) => R) Box<R>
+    Box(f(value))
+
+describe(x: any) string
+  if x is string
+    "text"
+  else if x is int
+    "int"
+  else if x is double
+    "decimal"
+  else if x is boolean
+    "boolean"
+  else if x is int[]
+    "list"
+  else if x is Circle
+    "circle"
+  else
+    "other"
+
+main() void
+  print("is", describe("a"), describe(3), describe(2.5), describe(true), describe([1]), describe(Circle(1)), describe(null))
+  shapes: Shape[] = [Circle(1), Square(2)]
+  print("areas", shapes.map((s) => s.area().toFixed(2)).join(","))
+  print("match", shapes.filter((s) => s is Square).length)
+  b = Box(20).map((v) => "${v * 2}")
+  print("generic", b.value, b.value is string)
+  value: any = 41
+  print("cast", (value as int) + 1)
+  o = { "name": "Ana", "age": 31 }
+  print("keys", o.keys.join(","), "has", "age" in o, "values", o.values.length)
+  print("strings", 7.toString() + "!", true.toString(), 2.5.toString())

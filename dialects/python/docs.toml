@@ -1,0 +1,16 @@
+# Editor documentation of the python dialect: what the editor and `nuclear help <word> --dialect python` show for each
+# header word. Rules: spec/python.md.
+
+[words]
+static = '''
+A **static method**: called on the class (`Math.max(a, b)`), written with `@staticmethod` and without `self`.
+'''
+get = '''
+A **property**: `get area() double` + block → `@property def area(self) -> float`. Read it as `shape.area`.
+'''
+set = '''
+The **setter of a property**: `set area(value: double)` + block → `@area.setter`.
+'''
+abstract = '''
+A module that is not instantiated by itself; a module with only signatures is already a `Protocol`.
+'''

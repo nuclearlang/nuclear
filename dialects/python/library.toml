@@ -1,0 +1,284 @@
+# How Python writes Nuclear's standard library (spec/library.md, ADR-0094; spec/python.md §9).
+# Variables: recv, args, argN, has_args, named.<name>, fn.param/fn.params/fn.body (an expression lambda argument:
+# a comprehension), argN_is.<base> (the static type of an argument), elem, type_args. A `helper` is written once
+# per file. Lists are list, maps dict, sets set, Bytes is bytes, DateTime is datetime.datetime (aware when UTC),
+# Duration is datetime.timedelta, Regex is re.Pattern and Match is re.Match; `string.length` counts code points.
+
+[library.string]
+length = 'len({{recv}})'
+isEmpty = 'len({{recv}}) == 0'
+codeAt = 'ord({{recv}}[{{arg0}}])'
+upper = '{{recv}}.upper()'
+lower = '{{recv}}.lower()'
+trim = '{{recv}}.strip()'
+trimStart = '{{recv}}.lstrip()'
+trimEnd = '{{recv}}.rstrip()'
+startsWith = '{{recv}}.startswith({{args}})'
+endsWith = '{{recv}}.endswith({{args}})'
+indexOf = '{{recv}}.find({{args}})'
+lastIndexOf = '{{recv}}.rfind({{args}})'
+substring = '{{recv}}[{{arg0}}:{{#arg1}}{{arg1}}{{/arg1}}]'
+split = '{{#arg0_is.regex}}{{arg0}}.split({{recv}}){{/arg0_is.regex}}{{^arg0_is.regex}}{{recv}}.split({{arg0}}){{/arg0_is.regex}}'
+chars = 'list({{recv}})'
+replace = '{{recv}}.replace({{arg0}}, {{arg1}}, 1)'
+replaceAll = '{{#arg0_is.regex}}{{arg0}}.sub({{arg1}}, {{recv}}){{/arg0_is.regex}}{{^arg0_is.regex}}{{recv}}.replace({{arg0}}, {{arg1}}){{/arg0_is.regex}}'
+repeat = '{{recv}} * {{arg0}}'
+padStart = '{{recv}}.rjust({{arg0}}{{#arg1}}, {{arg1}}{{/arg1}})'
+padEnd = '{{recv}}.ljust({{arg0}}{{#arg1}}, {{arg1}}{{/arg1}})'
+toInt = { template = '_to_int({{recv}})', helper = """
+def _to_int(s: str) -> int | None:
+    try:
+        return int(s)
+    except ValueError:
+        return None""" }
+toDouble = { template = '_to_double({{recv}})', helper = """
+def _to_double(s: str) -> float | None:
+    try:
+        return float(s)
+    except ValueError:
+        return None""" }
+compareTo = { template = '_compare({{recv}}, {{arg0}})', helper = """
+def _compare(a: str, b: str) -> int:
+    return (a > b) - (a < b)""" }
+toBytes = '{{recv}}.encode()'
+
+[library.list]
+length = 'len({{recv}})'
+isEmpty = 'len({{recv}}) == 0'
+first = '{{recv}}[0]'
+last = '{{recv}}[-1]'
+add = '{{recv}}.append({{arg0}})'
+addAll = '{{recv}}.extend({{arg0}})'
+insert = '{{recv}}.insert({{arg0}}, {{arg1}})'
+remove = { template = '_remove({{recv}}, {{arg0}})', helper = """
+def _remove[T](xs: list[T], x: T) -> bool:
+    if x in xs:
+        xs.remove(x)
+        return True
+    return False""" }
+removeAt = '{{recv}}.pop({{arg0}})'
+removeLast = '{{recv}}.pop()'
+clear = '{{recv}}.clear()'
+indexOf = { template = '_index_of({{recv}}, {{arg0}})', helper = """
+def _index_of[T](xs: list[T], x: T) -> int:
+    return xs.index(x) if x in xs else -1""" }
+lastIndexOf = { template = '_last_index_of({{recv}}, {{arg0}})', helper = """
+def _last_index_of[T](xs: list[T], x: T) -> int:
+    for i in range(len(xs) - 1, -1, -1):
+        if xs[i] == x:
+            return i
+    return -1""" }
+map = '{{#fn}}[{{fn.body}} for {{fn.param}} in {{recv}}]{{/fn}}{{^fn}}list(map({{arg0}}, {{recv}})){{/fn}}'
+filter = '{{#fn}}[{{fn.param}} for {{fn.param}} in {{recv}} if {{fn.body}}]{{/fn}}{{^fn}}list(filter({{arg0}}, {{recv}})){{/fn}}'
+find = '{{#fn}}next(({{fn.param}} for {{fn.param}} in {{recv}} if {{fn.body}}), None){{/fn}}{{^fn}}next((x for x in {{recv}} if {{arg0}}(x)), None){{/fn}}'
+findIndex = '{{#fn}}next((i for i, {{fn.param}} in enumerate({{recv}}) if {{fn.body}}), -1){{/fn}}{{^fn}}next((i for i, x in enumerate({{recv}}) if {{arg0}}(x)), -1){{/fn}}'
+any = '{{#fn}}any({{fn.body}} for {{fn.param}} in {{recv}}){{/fn}}{{^fn}}any({{arg0}}(x) for x in {{recv}}){{/fn}}'
+all = '{{#fn}}all({{fn.body}} for {{fn.param}} in {{recv}}){{/fn}}{{^fn}}all({{arg0}}(x) for x in {{recv}}){{/fn}}'
+count = '{{#fn}}sum(1 for {{fn.param}} in {{recv}} if {{fn.body}}){{/fn}}{{^fn}}sum(1 for x in {{recv}} if {{arg0}}(x)){{/fn}}'
+reduce = 'functools.reduce({{arg1}}, {{recv}}, {{arg0}})'
+sum = 'sum({{recv}})'
+min = { template = '_min({{recv}})', helper = """
+def _min[T: (int, float, str)](xs: list[T]) -> T | None:
+    return min(xs) if xs else None""" }
+max = { template = '_max({{recv}})', helper = """
+def _max[T: (int, float, str)](xs: list[T]) -> T | None:
+    return max(xs) if xs else None""" }
+join = '{{#has_args}}{{arg0}}{{/has_args}}{{^has_args}}""{{/has_args}}.join(map(str, {{recv}}))'
+slice = '{{recv}}[{{arg0}}:{{#arg1}}{{arg1}}{{/arg1}}]'
+take = '{{recv}}[:{{arg0}}]'
+skip = '{{recv}}[{{arg0}}:]'
+reversed = '{{recv}}[::-1]'
+sorted = 'sorted({{recv}})'
+sortedBy = 'sorted({{recv}}, key={{arg0}})'
+reverse = '{{recv}}.reverse()'
+sort = '{{recv}}.sort()'
+sortBy = '{{recv}}.sort(key={{arg0}})'
+unique = 'list(dict.fromkeys({{recv}}))'
+flatten = '[y for x in {{recv}} for y in x]'
+copy = 'list({{recv}})'
+groupBy = { template = '_group_by({{recv}}, {{arg0}})', helper = """
+def _group_by[T, K](xs: list[T], key: Callable[[T], K]) -> dict[K, list[T]]:
+    out: dict[K, list[T]] = {}
+    for x in xs:
+        out.setdefault(key(x), []).append(x)
+    return out""" }
+
+[library.map]
+length = 'len({{recv}})'
+isEmpty = 'len({{recv}}) == 0'
+remove = '{{recv}}.pop({{arg0}}, None)'
+keys = 'list({{recv}}.keys())'
+values = 'list({{recv}}.values())'
+
+[library.set]
+length = 'len({{recv}})'
+isEmpty = 'len({{recv}}) == 0'
+add = { template = '_add_to({{recv}}, {{arg0}})', helper = """
+def _add_to[T](s: set[T], x: T) -> bool:
+    if x in s:
+        return False
+    s.add(x)
+    return True""" }
+remove = { template = '_discard({{recv}}, {{arg0}})', helper = """
+def _discard[T](s: set[T], x: T) -> bool:
+    if x in s:
+        s.discard(x)
+        return True
+    return False""" }
+toList = 'list({{recv}})'
+union = '{{recv}} | {{arg0}}'
+intersection = '{{recv}} & {{arg0}}'
+difference = '{{recv}} - {{arg0}}'
+
+[library.number]
+abs = 'abs({{recv}})'
+sign = { template = '_sign({{recv}})', helper = """
+def _sign(x: float) -> int:
+    return (x > 0) - (x < 0)""" }
+round = { template = '_round({{recv}})', helper = """
+def _round(x: float) -> int:
+    return int(math.floor(abs(x) + 0.5)) * (1 if x >= 0 else -1)""" }
+floor = 'math.floor({{recv}})'
+ceil = 'math.ceil({{recv}})'
+truncate = 'math.trunc({{recv}})'
+toFixed = 'f"{{{recv}}:.{{{arg0}}}f}"'
+toInt = 'int({{recv}})'
+toDouble = 'float({{recv}})'
+toRadix = { template = '_to_radix({{recv}}, {{arg0}})', helper = """
+def _to_radix(n: int, base: int) -> str:
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    if n == 0:
+        return "0"
+    out = ""
+    value = abs(n)
+    while value:
+        out = digits[value % base] + out
+        value //= base
+    return "-" + out if n < 0 else out""" }
+
+[library.double]
+isNaN = 'math.isnan({{recv}})'
+isFinite = 'math.isfinite({{recv}})'
+
+[library.boolean]
+toString = '("true" if {{recv}} else "false")'
+
+[library.any]
+toString = 'str({{recv}})'
+
+[library.bytes]
+length = 'len({{recv}})'
+toText = '{{recv}}.decode()'
+slice = '{{recv}}[{{arg0}}:{{#arg1}}{{arg1}}{{/arg1}}]'
+toList = 'list({{recv}})'
+toBase64 = 'base64.b64encode({{recv}}).decode()'
+toHex = '{{recv}}.hex()'
+
+[library.datetime]
+year = '{{recv}}.year'
+month = '{{recv}}.month'
+day = '{{recv}}.day'
+hour = '{{recv}}.hour'
+minute = '{{recv}}.minute'
+second = '{{recv}}.second'
+millisecond = '({{recv}}.microsecond // 1000)'
+weekday = '{{recv}}.isoweekday()'
+millis = 'int({{recv}}.timestamp() * 1000)'
+isUtc = '({{recv}}.tzinfo is not None)'
+add = '({{recv}} + {{arg0}})'
+subtract = '({{recv}} - {{arg0}})'
+difference = '({{recv}} - {{arg0}})'
+isBefore = '{{recv}} < {{arg0}}'
+isAfter = '{{recv}} > {{arg0}}'
+toUtc = '{{recv}}.astimezone(datetime.timezone.utc)'
+toLocal = '{{recv}}.astimezone()'
+toIso = { template = '_iso({{recv}})', helper = """
+def _iso(d: datetime.datetime) -> str:
+    u = d.astimezone(datetime.timezone.utc) if d.tzinfo is not None else d
+    return u.strftime("%Y-%m-%dT%H:%M:%S.") + f"{u.microsecond // 1000:03d}Z"""" }
+
+[library.duration]
+inDays = 'int({{recv}}.total_seconds() // 86400)'
+inHours = 'int({{recv}}.total_seconds() // 3600)'
+inMinutes = 'int({{recv}}.total_seconds() // 60)'
+inSeconds = 'int({{recv}}.total_seconds())'
+inMillis = 'int({{recv}}.total_seconds() * 1000)'
+
+[library.regex]
+test = '({{recv}}.search({{arg0}}) is not None)'
+find = '{{recv}}.search({{arg0}})'
+findAll = 'list({{recv}}.finditer({{arg0}}))'
+
+[library.match]
+text = '{{recv}}.group(0)'
+start = '{{recv}}.start()'
+end = '{{recv}}.end()'
+group = '{{recv}}.group({{arg0}})'
+
+[library.Math]
+pi = 'math.pi'
+e = 'math.e'
+sqrt = 'math.sqrt({{arg0}})'
+cbrt = 'math.cbrt({{arg0}})'
+hypot = 'math.hypot({{args}})'
+sin = 'math.sin({{arg0}})'
+cos = 'math.cos({{arg0}})'
+tan = 'math.tan({{arg0}})'
+asin = 'math.asin({{arg0}})'
+acos = 'math.acos({{arg0}})'
+atan = 'math.atan({{arg0}})'
+atan2 = 'math.atan2({{args}})'
+exp = 'math.exp({{arg0}})'
+log = 'math.log({{arg0}})'
+log10 = 'math.log10({{arg0}})'
+log2 = 'math.log2({{arg0}})'
+min = 'min({{args}})'
+max = 'max({{args}})'
+clamp = 'min(max({{arg0}}, {{arg1}}), {{arg2}})'
+random = 'random.random()'
+
+[library.Json]
+encode = { template = '_json({{arg0}})', helper = """
+def _json(value: object) -> str:
+    return json.dumps(value, separators=(",", ":"), default=lambda o: o.model_dump() if hasattr(o, "model_dump") else vars(o))""" }
+decode = 'json.loads({{arg0}})'
+
+[library.String]
+fromCodes = '"".join(map(chr, {{arg0}}))'
+
+[library.DateTime]
+now = 'datetime.datetime.now()'
+utc = 'datetime.datetime({{args}}, tzinfo=datetime.timezone.utc)'
+new = 'datetime.datetime({{args}})'
+parse = { template = '_parse_date({{arg0}})', helper = """
+def _parse_date(s: str) -> datetime.datetime | None:
+    try:
+        return datetime.datetime.fromisoformat(s)
+    except ValueError:
+        return None""" }
+fromMillis = 'datetime.datetime.fromtimestamp({{arg0}} / 1000, datetime.timezone.utc)'
+
+[library.Duration]
+new = 'datetime.timedelta({{call_args}})'
+
+[library.Regex]
+new = { template = '_regex({{arg0}}{{#named.ignoreCase}}, ignore_case=True{{/named.ignoreCase}}{{#named.multiline}}, multiline=True{{/named.multiline}})', helper = '''
+def _regex(pattern: str, ignore_case: bool = False, multiline: bool = False) -> re.Pattern[str]:
+    # named groups are written (?<name>...) in Nuclear, as in every other regex tool; Python wants (?P<name>...)
+    flags = (re.IGNORECASE if ignore_case else 0) | (re.MULTILINE if multiline else 0)
+    return re.compile(re.sub(r"\(\?<(?![=!])", "(?P<", pattern), flags)''' }
+
+[library.Set]
+new = '{{#type_args}}set[{{type_args}}](){{/type_args}}{{^type_args}}set(){{/type_args}}'
+of = 'set({{arg0}})'
+
+[library.Bytes]
+of = 'bytes({{arg0}})'
+fromBase64 = 'base64.b64decode({{arg0}})'
+fromHex = 'bytes.fromhex({{arg0}})'
+
+[library.error]
+message = 'str({{recv}})'
+
+[library.Error]
+new = 'Exception({{arg0}})'

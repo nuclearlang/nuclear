@@ -1,0 +1,31 @@
+Message
+  role: 'user' | 'assistant'
+  content: string
+
+Chat > Message
+  (
+    role: 'user' | 'assistant',
+    content: string,
+    model: string,
+    history: Message[] = []
+  )
+    $role = 'user'
+    $content = 'content'
+
+  send(text: string) string
+    history.add({ role: 'user', content: text })
+    reply = ~callModel(model, history)
+    history.add({ role: 'assistant', content: reply })
+    reply
+
+loadPrompt(path: string) string
+  ~readFile(path, 'utf8')
+
+callModel(model: string, messages: Message[]) string
+  res = ~fetch(
+    'https://api.example.com/chat',
+    method = 'POST',
+    body = Json.encode({ model, messages })
+  )
+  data = ~res.json()
+  data.text

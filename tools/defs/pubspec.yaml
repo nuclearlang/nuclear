@@ -1,0 +1,7 @@
+name: nuclear_defs
+description: Generates the NuclearLang type definitions packages of the dart language (defs/dart/) from the installed SDK and packages.
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dependencies:
+  analyzer: ^10.1.0

@@ -1,0 +1,19 @@
+// Math with Nuclear's standard library (Math, the number members) and Nuclear's operators.
+f(x: double) string = x.toFixed(4)
+
+main() void
+  print("sqrt", f(Math.sqrt(2)), "cbrt", f(Math.cbrt(27)), "hypot", f(Math.hypot(3, 4)))
+  print("pow", 2 ** 10, f(2.5 ** 2), f(2.0 ** -1), -2 ** 2)
+  print("abs", (-7).abs(), "sign", (-3).sign())
+  print("floor", 2.7.floor(), "ceil", 2.1.ceil(), "round", 2.5.round(), (-2.5).round(), "trunc", (-2.7).truncate())
+  print("sin", f(Math.sin(Math.pi / 6)), "cos", f(Math.cos(0)), "tan", f(Math.tan(Math.pi / 4)))
+  print("asin", f(Math.asin(1)), "acos", f(Math.acos(1)), "atan2", f(Math.atan2(1, 1)))
+  print("exp", f(Math.exp(1)), "ln", f(Math.log(Math.e)), "log10", f(Math.log10(1000)), "log2", f(Math.log2(8)))
+  print("min", Math.min(3, 9), "max", Math.max(3, 9), "clamp", Math.clamp(15, 0, 10))
+  print("intdiv", 17 ~/ 5, "rem", 17 % 5)
+  print("parse", "42".toInt()! + 1, f("3.5".toDouble()!))
+  n = 255
+  print("radix", n.toRadix(16), 5.toRadix(2), "fixed", 2.toFixed(1))
+  big = 1.0e308 * 10
+  print("special", big.isFinite, (big - big).isNaN, 2.5.isFinite)
+  print("sci", f(1.5e-3 * 2e3), "bin", 0b1010, "hex", 0xff, "sep", 1_000_000)

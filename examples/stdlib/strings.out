@@ -1,0 +1,16 @@
+trim [Hello, Nuclear World] [Hello, Nuclear World  ] [  Hello, Nuclear World]
+length 20 upper HELLO, NUCLEAR WORLD lower hello, nuclear world
+contains true starts true ends true
+index 4 16 -1
+substring Nuclear char H code 72
+split Hello|Nuclear World words 3
+replace a+b-c all a+b+c
+repeat ababab pad 007 7..
+reverse raelcun
+capitalize Dragonfly
+points 3
+from code Nuc
+compare true true true
+fixed 3.14 join 1, 2, 3
+numbers 42 null 2.5
+2

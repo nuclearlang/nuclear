@@ -1,0 +1,33 @@
+# The language: the compiler, the CLI and the language server, the specs of the language dialects.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: nuclear
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: "Tests and clippy"
+        working-directory: nuclear
+        run: |
+          cargo test
+          cargo clippy --all-targets -- -D warnings
+      - name: "The specs' equivalences"
+        working-directory: nuclear
+        run: |
+          python3 tools/spec-check/check.py spec/typescript.md typescript typescript
+          python3 tools/spec-check/check.py spec/dart.md dart dart
+          python3 tools/spec-check/check.py spec/python.md python python

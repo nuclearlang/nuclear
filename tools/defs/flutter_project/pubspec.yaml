@@ -1,0 +1,29 @@
+name: flutter_project
+description: Resolves package:flutter/... and the framework packages for tools/defs, and hosts the code checked by tools/analyze-flutter.sh.
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dependencies:
+  bloc: 9.2.1
+  connectivity_plus: 7.3.2
+  dragonfly:
+    path: ../../../dragonfly-mobile/packages/dragonfly
+  flutter_secure_storage: 11.2.0
+  go_router: 18.1.1
+  dio: 5.11.1
+  flutter:
+    sdk: flutter
+  flutter_bloc: 9.1.1
+  get_it: 9.3.0
+  json_annotation: 4.12.0
+  fpdart: 1.2.0
+  # the genkit plugin of the flutter dialect
+  genkit: 1.0.1
+  schemantic: 1.0.0
+  dragonfly_genkit:
+    path: ../../../dragonfly-mobile/packages/dragonfly_genkit
+
+dev_dependencies:
+  bloc_test: 10.0.0
+  flutter_lints: any
+  mocktail: 1.0.5

@@ -1,0 +1,3 @@
+all a,b
+generator 0,1,4,9,16
+error caught boom

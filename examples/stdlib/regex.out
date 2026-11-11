@@ -1,0 +1,10 @@
+test true false
+groups 2026 11 3 13 2026-11-03
+all one,two,three
+replace 03/11/2026
+callback a1b2c3
+split a|b|c|d
+ignore case true
+multiline 3
+escape true
+none true

@@ -1,0 +1,132 @@
+// Examples of spec/nuclear-base.md: the same file is transpiled with typescript and with dart.
+
+Role
+  user
+  admin("administrator")
+
+Message
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  name?: string
+
+User(name: string, email: string, role: Role = Role.user)
+  token?: string
+
+  isAdmin() boolean
+    role == Role.admin
+
+  rename(newName: string) void
+    $name = newName
+
+Users
+  get(name: string) <string, string>
+    { "name": name }
+
+Sales
+  getSales(name: string, lastName: string) <string, string>
+    print("sale by: ${name}")
+    Users().get(lastName)
+
+addDoubles(a: double, b: double) double = a + b
+
+greet(name: string) string
+  "Hello ${name}"
+
+classify(n: int) string
+  label = match n
+    0 -> "zero"
+    1 | 2 -> "small"
+    _ -> "big"
+  label
+
+sumUntil(limit: int) int
+  total = 0
+  for i in 0..limit
+    if i % 2 == 0
+      total += i
+    else if i > 100
+      break
+  total
+
+// if and match are values: the last line of each branch
+describe(user: User?) string
+  result = if user == null
+    prefix = "no"
+    prefix + "body"
+  else
+    user.name
+  result
+
+~loadUsers(ids: string[]) User[]
+  users = []
+  for id in ids
+    try
+      users.add(~fetchUser(id))
+    catch error
+      print(error)
+  users
+
+fetchUser(id: string) User
+  User(name = id, email = "${id}@example.com")
+
+run()
+  doubles = [1, 2, 3].map(n => n * 2)
+  adults = (1..10).map(i: int)
+    i * 2
+  log = (message: string)
+    print(message)
+  log("done ${doubles} ${adults}")
+  config = { "debug": true, "retries": 3 }
+  for key, value in config
+    print(key)
+  ready = not (doubles.length == 0) and "x" in ["x"]
+  ready
+
+// destructuring: lists and maps
+bounds(xs: int[]) <string, int>
+  { "min": xs[0], "max": xs[1] }
+
+unpack(xs: int[]) int
+  [head, ...tail] = xs
+  { min, max } = bounds(xs)
+  head + tail.length + min + max
+
+// generators: yield
+countTo(limit: int) int
+  for i in 0..limit
+    yield i
+
+// generics with a bound
+Comparable
+  compareTo(other: Comparable) int
+
+larger<T: Comparable>(a: T, b: T) T
+  a.compareTo(b) > 0 ? a : b
+
+// if inside a list
+labels(loading: boolean) string[]
+  ['start', if loading 'loading', 'end']
+
+// results: errors propagate on their own
+parseAge(text: string) Result<string, int>
+  if text == ''
+    return Err('empty')
+  Ok(text.length)
+
+describeAge(text: string) Result<string, string>
+  age = parseAge(text)
+  safe = parseAge('0').error(e => Ok(0))
+  Ok('${age + safe}')
+
+ageLabel(text: string) string
+  match describeAge(text)
+    Ok(label) -> label
+    Err(e) -> 'error: ${e}'
+
+// alias: ageText is the same function as Ages.text
+Ages
+  text(age: int) string
+    '${age} years'
+
+Profile()
+  ageText() = Ages.text

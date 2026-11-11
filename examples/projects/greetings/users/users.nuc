@@ -1,0 +1,6 @@
+Users
+  find() = UserStore.find
+
+greet(name: string) Result<string, string>
+  user = Users().find(name)
+  Ok("hello ${user.name}")

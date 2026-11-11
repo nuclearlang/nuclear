@@ -1,0 +1,213 @@
+# How Dart writes Nuclear's standard library (spec/library.md, ADR-0094; spec/dart.md §9).
+# Variables: recv, args, argN, has_args, named.<name>, fn.param/fn.params/fn.body (an expression lambda argument),
+# argN_is.<base> (the static type of an argument), elem, type_args. A `helper` is written once per file.
+# Lists are List, maps Map, sets Set, Bytes is Uint8List (dart:typed_data), DateTime and Duration are Dart's,
+# Regex is RegExp and Match is RegExpMatch; dart:math and dart:convert are imported when their names are written.
+
+[library.string]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.isEmpty"
+codeAt = "{{recv}}.codeUnitAt({{arg0}})"
+upper = "{{recv}}.toUpperCase()"
+lower = "{{recv}}.toLowerCase()"
+trim = "{{recv}}.trim()"
+trimStart = "{{recv}}.trimLeft()"
+trimEnd = "{{recv}}.trimRight()"
+startsWith = "{{recv}}.startsWith({{args}})"
+endsWith = "{{recv}}.endsWith({{args}})"
+indexOf = "{{recv}}.indexOf({{args}})"
+lastIndexOf = "{{recv}}.lastIndexOf({{args}})"
+substring = "{{recv}}.substring({{args}})"
+split = "{{recv}}.split({{arg0}})"
+chars = "{{recv}}.runes.map((r) => String.fromCharCode(r)).toList()"
+replace = "{{recv}}.replaceFirst({{arg0}}, {{arg1}})"
+replaceAll = "{{#fn}}{{recv}}.replaceAllMapped({{arg0}}, {{arg1}}){{/fn}}{{^fn}}{{recv}}.replaceAll({{arg0}}, {{arg1}}){{/fn}}"
+repeat = "{{recv}} * {{arg0}}"
+padStart = "{{recv}}.padLeft({{args}})"
+padEnd = "{{recv}}.padRight({{args}})"
+toInt = "int.tryParse({{recv}})"
+toDouble = "double.tryParse({{recv}})"
+compareTo = "{{recv}}.compareTo({{arg0}})"
+toBytes = "utf8.encode({{recv}})"
+
+[library.list]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.isEmpty"
+first = "{{recv}}.first"
+last = "{{recv}}.last"
+add = "{{recv}}.add({{arg0}})"
+addAll = "{{recv}}.addAll({{arg0}})"
+insert = "{{recv}}.insert({{arg0}}, {{arg1}})"
+remove = "{{recv}}.remove({{arg0}})"
+removeAt = "{{recv}}.removeAt({{arg0}})"
+removeLast = "{{recv}}.removeLast()"
+clear = "{{recv}}.clear()"
+indexOf = "{{recv}}.indexOf({{arg0}})"
+lastIndexOf = "{{recv}}.lastIndexOf({{arg0}})"
+map = "{{recv}}.map({{arg0}}).toList()"
+filter = "{{recv}}.where({{arg0}}).toList()"
+find = "{{recv}}.where({{arg0}}).firstOrNull"
+findIndex = "{{recv}}.indexWhere({{arg0}})"
+any = "{{recv}}.any({{arg0}})"
+all = "{{recv}}.every({{arg0}})"
+count = "{{recv}}.where({{arg0}}).length"
+reduce = "{{recv}}.fold({{arg0}}, {{arg1}})"
+sum = "{{recv}}.fold(0, (a, b) => a + b)"
+min = { template = "_min({{recv}})", helper = "T? _min<T extends Comparable<dynamic>>(List<T> xs) =>\n    xs.isEmpty ? null : xs.reduce((a, b) => a.compareTo(b) <= 0 ? a : b);" }
+max = { template = "_max({{recv}})", helper = "T? _max<T extends Comparable<dynamic>>(List<T> xs) =>\n    xs.isEmpty ? null : xs.reduce((a, b) => a.compareTo(b) >= 0 ? a : b);" }
+join = "{{recv}}.join({{#has_args}}{{arg0}}{{/has_args}})"
+slice = "{{recv}}.sublist({{args}})"
+take = "{{recv}}.take({{arg0}}).toList()"
+skip = "{{recv}}.skip({{arg0}}).toList()"
+reversed = "{{recv}}.reversed.toList()"
+sorted = "(List.of({{recv}})..sort())"
+sortedBy = { template = "_sortBy(List.of({{recv}}), {{arg0}})", helper = "List<T> _sortBy<T, K extends Comparable<dynamic>>(List<T> xs, K Function(T) key) =>\n    xs..sort((a, b) => key(a).compareTo(key(b)));" }
+reverse = { template = "_reverse({{recv}})", helper = "void _reverse<T>(List<T> xs) => xs.setAll(0, xs.reversed.toList());" }
+sort = "{{recv}}.sort()"
+sortBy = { template = "_sortBy({{recv}}, {{arg0}})", helper = "List<T> _sortBy<T, K extends Comparable<dynamic>>(List<T> xs, K Function(T) key) =>\n    xs..sort((a, b) => key(a).compareTo(key(b)));" }
+unique = "{{recv}}.toSet().toList()"
+flatten = "{{recv}}.expand((x) => x).toList()"
+copy = "List.of({{recv}})"
+groupBy = { template = "_groupBy({{recv}}, {{arg0}})", helper = "Map<K, List<T>> _groupBy<T, K>(List<T> xs, K Function(T) key) {\n  final out = <K, List<T>>{};\n  for (final x in xs) {\n    (out[key(x)] ??= []).add(x);\n  }\n  return out;\n}" }
+
+[library.map]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.isEmpty"
+remove = "{{recv}}.remove({{arg0}})"
+keys = "{{recv}}.keys.toList()"
+values = "{{recv}}.values.toList()"
+
+[library.set]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.isEmpty"
+add = "{{recv}}.add({{arg0}})"
+remove = "{{recv}}.remove({{arg0}})"
+toList = "{{recv}}.toList()"
+union = "{{recv}}.union({{arg0}})"
+intersection = "{{recv}}.intersection({{arg0}})"
+difference = "{{recv}}.difference({{arg0}})"
+
+[library.number]
+abs = "{{recv}}.abs()"
+sign = "{{recv}}.sign.toInt()"
+round = "{{recv}}.round()"
+floor = "{{recv}}.floor()"
+ceil = "{{recv}}.ceil()"
+truncate = "{{recv}}.truncate()"
+toFixed = "{{recv}}.toStringAsFixed({{arg0}})"
+toInt = "{{recv}}.toInt()"
+toDouble = "{{recv}}.toDouble()"
+toRadix = "{{recv}}.toRadixString({{arg0}})"
+
+[library.double]
+isNaN = "{{recv}}.isNaN"
+isFinite = "{{recv}}.isFinite"
+
+[library.boolean]
+toString = "{{recv}}.toString()"
+
+[library.any]
+toString = "{{recv}}.toString()"
+
+[library.bytes]
+length = "{{recv}}.length"
+toText = "utf8.decode({{recv}})"
+slice = "{{recv}}.sublist({{args}})"
+toList = "{{recv}}.toList()"
+toBase64 = "base64.encode({{recv}})"
+toHex = "{{recv}}.map((b) => b.toRadixString(16).padLeft(2, '0')).join()"
+
+[library.datetime]
+year = "{{recv}}.year"
+month = "{{recv}}.month"
+day = "{{recv}}.day"
+hour = "{{recv}}.hour"
+minute = "{{recv}}.minute"
+second = "{{recv}}.second"
+millisecond = "{{recv}}.millisecond"
+weekday = "{{recv}}.weekday"
+millis = "{{recv}}.millisecondsSinceEpoch"
+isUtc = "{{recv}}.isUtc"
+add = "{{recv}}.add({{arg0}})"
+subtract = "{{recv}}.subtract({{arg0}})"
+difference = "{{recv}}.difference({{arg0}})"
+isBefore = "{{recv}}.isBefore({{arg0}})"
+isAfter = "{{recv}}.isAfter({{arg0}})"
+toUtc = "{{recv}}.toUtc()"
+toLocal = "{{recv}}.toLocal()"
+toIso = "{{recv}}.toIso8601String()"
+
+[library.duration]
+inDays = "{{recv}}.inDays"
+inHours = "{{recv}}.inHours"
+inMinutes = "{{recv}}.inMinutes"
+inSeconds = "{{recv}}.inSeconds"
+inMillis = "{{recv}}.inMilliseconds"
+
+[library.regex]
+test = "{{recv}}.hasMatch({{arg0}})"
+find = "{{recv}}.firstMatch({{arg0}})"
+findAll = "{{recv}}.allMatches({{arg0}}).toList()"
+
+[library.match]
+text = "{{recv}}.group(0)!"
+start = "{{recv}}.start"
+end = "{{recv}}.end"
+group = "{{recv}}.namedGroup({{arg0}})"
+
+[library.Math]
+pi = "pi"
+e = "2.718281828459045"
+sqrt = "sqrt({{arg0}})"
+cbrt = { template = "_cbrt({{arg0}})", helper = "double _cbrt(num x) => x < 0 ? -pow(-x, 1 / 3).toDouble() : pow(x, 1 / 3).toDouble();" }
+hypot = { template = "_hypot({{arg0}}, {{arg1}})", helper = "double _hypot(num a, num b) => sqrt(a * a + b * b);" }
+sin = "sin({{arg0}})"
+cos = "cos({{arg0}})"
+tan = "tan({{arg0}})"
+asin = "asin({{arg0}})"
+acos = "acos({{arg0}})"
+atan = "atan({{arg0}})"
+atan2 = "atan2({{args}})"
+exp = "exp({{arg0}})"
+log = "log({{arg0}})"
+log10 = "(log({{arg0}}) / ln10)"
+log2 = "(log({{arg0}}) / ln2)"
+min = "min({{args}})"
+max = "max({{args}})"
+clamp = "{{arg0}}.clamp({{arg1}}, {{arg2}})"
+random = "Random().nextDouble()"
+
+[library.Json]
+encode = "jsonEncode({{arg0}})"
+decode = "jsonDecode({{arg0}})"
+
+[library.String]
+fromCodes = "String.fromCharCodes({{arg0}})"
+
+[library.DateTime]
+now = "DateTime.now()"
+utc = "DateTime.utc({{args}})"
+new = "DateTime({{args}})"
+parse = "DateTime.tryParse({{arg0}})"
+fromMillis = "DateTime.fromMillisecondsSinceEpoch({{arg0}}, isUtc: true)"
+
+[library.Duration]
+new = "Duration({{call_args}})"
+
+[library.Regex]
+new = "RegExp({{arg0}}{{#named.ignoreCase}}, caseSensitive: false{{/named.ignoreCase}}{{#named.multiline}}, multiLine: true{{/named.multiline}})"
+
+[library.Set]
+new = "<{{#type_args}}{{type_args}}{{/type_args}}{{^type_args}}dynamic{{/type_args}}>{}"
+of = "Set.of({{arg0}})"
+
+[library.Bytes]
+of = "Uint8List.fromList({{arg0}})"
+fromBase64 = "base64.decode({{arg0}})"
+fromHex = { template = "_fromHex({{arg0}})", helper = "Uint8List _fromHex(String h) => Uint8List.fromList([\n  for (var i = 0; i < h.length; i += 2) int.parse(h.substring(i, i + 2), radix: 16),\n]);" }
+
+[library.error]
+message = "{{recv}}.toString()"
+
+[library.Error]
+new = { template = "NuclearError({{arg0}})", helper = "class NuclearError implements Exception {\n  final String message;\n\n  NuclearError(this.message);\n\n  @override\n  String toString() => message;\n}" }

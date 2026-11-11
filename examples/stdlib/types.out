@@ -1,0 +1,7 @@
+is text int decimal boolean list circle other
+areas 3.14,4.00
+match 1
+generic 40 true
+cast 42
+keys name,age has true values 2
+strings 7! true 2.5

@@ -1,0 +1,12 @@
+[package]
+name = "spec-check"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+nuclear-dialect = { path = "../../crates/nuclear-dialect" }
+nuclear-transpile = { path = "../../crates/nuclear-transpile" }
+
+# not part of the transpiler workspace
+[workspace]

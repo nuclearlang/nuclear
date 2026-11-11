@@ -1,0 +1,79 @@
+# Dart 3.5 reserved words and how they are produced from Nuclear.
+# Source: https://dart.dev/language/keywords
+# Inherited by the dart and flutter dialects. Format: spec/reserved-words.md.
+# `level` reserved: a Nuclear name with that word is renamed (options.reserved_escape).
+
+[keywords]
+# --- reserved: can never be identifiers ---
+assert   = { level = "reserved", via = "builtin", nuclear = "assert(age >= 0)" }
+break    = { level = "reserved", via = "base" }
+case     = { level = "reserved", via = "none", note = "match is emitted as if / else if" }
+catch    = { level = "reserved", via = "base" }
+class    = { level = "reserved", via = "auto", note = "module with code → class" }
+const    = { level = "reserved", via = "modifier", note = "default lists and maps in parameters are emitted const" }
+continue = { level = "reserved", via = "base" }
+default  = { level = "reserved", via = "none", note = "the _ arm of match is emitted as else" }
+do       = { level = "reserved", via = "none", note = "while covers the case" }
+else     = { level = "reserved", via = "base" }
+enum     = { level = "reserved", via = "auto", note = "module with only items → enum" }
+extends  = { level = "reserved", via = "base", nuclear = "Admin: User" }
+false    = { level = "reserved", via = "base" }
+final    = { level = "reserved", via = "auto", note = "variable never reassigned (x = 1) → final x = 1; also a modifier" }
+finally  = { level = "reserved", via = "base" }
+for      = { level = "reserved", via = "base" }
+if       = { level = "reserved", via = "base" }
+in       = { level = "reserved", via = "base" }
+is       = { level = "reserved", via = "base" }
+new      = { level = "reserved", via = "none", note = "Dart does not need it; never emitted" }
+null     = { level = "reserved", via = "base" }
+rethrow  = { level = "reserved", via = "todo", note = "throw of the catch variable itself → rethrow" }
+return   = { level = "reserved", via = "auto", note = "implicit return; explicit return is also base" }
+super    = { level = "reserved", via = "base" }
+switch   = { level = "reserved", via = "none", note = "match is emitted as if / else if" }
+this     = { level = "reserved", via = "base" }
+throw    = { level = "reserved", via = "base" }
+true     = { level = "reserved", via = "base" }
+try      = { level = "reserved", via = "base" }
+var      = { level = "reserved", via = "auto", note = "x = 1 reassigned later → var x = 1" }
+void     = { level = "reserved", via = "type" }
+while    = { level = "reserved", via = "base" }
+with     = { level = "reserved", via = "clause", nuclear = "Bird: Animal with Flyer" }
+
+# --- builtin: cannot be a type name ---
+abstract  = { level = "builtin", via = "modifier", nuclear = "abstract Shape" }
+as        = { level = "builtin", via = "base" }
+covariant = { level = "builtin", via = "modifier", nuclear = "chase(covariant a: Mouse)" }
+deferred  = { level = "builtin", via = "clause", nuclear = "use greetings/hello deferred as hello" }
+dynamic   = { level = "builtin", via = "type", note = "Nuclear's any → dynamic" }
+export    = { level = "builtin", via = "todo", note = "re-export libraries" }
+extension = { level = "builtin", via = "kind", nuclear = "extension NumberParsing on String" }
+external  = { level = "builtin", via = "modifier", nuclear = "external nativeSum(a: int, b: int) int" }
+factory   = { level = "builtin", via = "modifier", nuclear = "factory fromJson(json: <string, any>) User" }
+Function  = { level = "builtin", via = "type" }
+get       = { level = "builtin", via = "modifier", nuclear = "get area() double" }
+implements = { level = "builtin", via = "base", nuclear = "Circle > Shape" }
+import    = { level = "builtin", via = "auto", note = "use + automatic imports" }
+interface = { level = "builtin", via = "auto", note = "module with only attributes and signatures → abstract class" }
+late      = { level = "builtin", via = "auto", note = "field without a value the constructor does not initialize → late" }
+library   = { level = "builtin", via = "none", note = "the transpiler organizes the files" }
+mixin     = { level = "builtin", via = "kind", nuclear = "mixin Flyer on Animal" }
+operator  = { level = "builtin", via = "todo", note = "operator overloading" }
+part      = { level = "builtin", via = "none", note = "the transpiler organizes the files" }
+required  = { level = "builtin", via = "auto", note = "named parameter without a default value → required" }
+set       = { level = "builtin", via = "modifier", nuclear = "set area(value: double)" }
+static    = { level = "builtin", via = "modifier", nuclear = "static create() User" }
+typedef   = { level = "builtin", via = "base", nuclear = "type Json = <string, any>" }
+
+# --- contextual: keywords only in certain places ---
+async  = { level = "contextual", via = "auto", note = "added if the function uses ~" }
+await  = { level = "contextual", via = "auto", note = "~call()" }
+base   = { level = "contextual", via = "modifier", nuclear = "base Vehicle" }
+hide   = { level = "contextual", via = "clause", nuclear = "use lib2/lib2 hide foo" }
+of     = { level = "contextual", via = "none", note = "only in part of" }
+on     = { level = "contextual", via = "clause", nuclear = "extension NumberParsing on String" }
+sealed = { level = "contextual", via = "modifier", nuclear = "sealed Result" }
+show   = { level = "contextual", via = "clause", nuclear = "use lib1/lib1 show foo" }
+sync   = { level = "contextual", via = "auto", note = "sync* / async*: the transpiler generates them in functions with yield" }
+type   = { level = "contextual", via = "todo", note = "extension type UserId(id: int)" }
+when   = { level = "contextual", via = "todo", note = "guards in match" }
+yield  = { level = "contextual", via = "base", nuclear = "yield value / yield ...others", note = "a function with yield is a generator" }

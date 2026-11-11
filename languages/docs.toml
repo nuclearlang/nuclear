@@ -1,0 +1,610 @@
+# Editor documentation of the base language: what the editor shows when the pointer rests on a word
+# (hover) and next to each completion. Markdown, in English (decision 75). It is compiled into the
+# transpiler (nuclear_dialect::base_doc); a build never reads it. Rules: spec/nuclear-base.md.
+#
+# Sections: [keywords] reserved words, [builtins] names that exist without declaring them,
+# [types] base types, [tags] the tags of a doc comment (`@param`...).
+
+[keywords]
+
+use = '''
+Imports a module or a file. The path and the import it writes depend on the dialect, which knows
+its target.
+
+```nuclear
+use material                         // a shortcut of the dialect
+use fs/promises{ readFile }          // only some names
+use * as path from path              // the whole module under a name
+use './setup'                        // a file of the project
+```
+
+Most names need no `use`: a dialect **imports automatically** every name of the target's libraries
+that the code writes (`Scaffold`, `readFile`...). Words after the path (`show`, `hide`) belong to
+the dialect.
+'''
+
+from = '''
+Part of `use * as name from module`: imports the whole module under `name`.
+
+```nuclear
+use * as path from path
+file = path.join(dir, 'a.txt')
+```
+'''
+
+as = '''
+Two uses:
+
+| Where | Meaning | Example |
+|---|---|---|
+| in `use` | an alias for the module | `use * as path from path` |
+| in an expression | a **cast**: the value has that type | `id = json['id'] as int` |
+
+```nuclear
+data = jsonDecode(text) as <string, int>
+```
+
+A cast does not convert the value: it tells the target which type it already has.
+'''
+
+if = '''
+Runs a block when a condition is true. `if` is also a **value** (like Elixir): the value of each
+branch is its last line.
+
+```nuclear
+if age >= 18
+  print('adult')
+else if age >= 13
+  print('teen')
+else
+  print('child')
+
+label = if done          // one expression per branch → a ternary
+  'ready'
+else
+  'pending'
+
+text = if age >= 18                      // branches of several lines
+  prefix = 'adul'
+  prefix + 't'
+else
+  'minor'
+```
+
+```
+          ┌── true ──► branch 1 ──┐
+ cond ────┤                       ├──► value of the if
+          └── false ─► else ──────┘
+```
+
+- As a value, an `if` needs `else`.
+- A variable declared inside a branch lives only in that branch (`N0105`): assign the whole `if`.
+- Inside a list, `if cond value` adds `value` only when `cond` holds: `[a, if loading Spinner()]`.
+'''
+
+else = '''
+The branch of an `if` that runs when the condition is false. `else if cond` checks another
+condition.
+
+```nuclear
+size = if n < 10
+  'small'
+else if n < 100
+  'medium'
+else
+  'large'
+```
+'''
+
+for = '''
+Loops over a list, a map or a range.
+
+| Form | Visits |
+|---|---|
+| `for item in items` | every element |
+| `for key, value in map` | every entry of a map |
+| `for i in 0..10` | 0, 1, … 9 (the end is excluded) |
+
+```nuclear
+for user in users
+  print(user.name)
+
+for name, score in scores
+  print('${name}: ${score}')
+
+for i in 0..3
+  print(i)            // 0 1 2
+```
+
+To get a new list, use `map`/`filter` instead: `names = users.map(u => u.name)`.
+'''
+
+in = '''
+Two uses:
+
+- in `for x in xs`: the collection to visit;
+- in an expression: **membership** (`x in list` is true when the list contains `x`).
+
+```nuclear
+for role in roles
+  print(role)
+
+isAdmin = 'admin' in roles
+```
+'''
+
+while = '''
+Repeats its block while the condition is true. The condition is checked before every turn.
+
+```nuclear
+pending = 3
+while pending > 0
+  print(pending)
+  pending -= 1
+```
+
+`break` leaves the loop; `continue` goes to the next turn.
+'''
+
+match = '''
+Compares a value with patterns, from top to bottom; the first one that fits runs. `match` is also
+a **value**: the value of each arm is its last line.
+
+```nuclear
+label = match status
+  'ok' -> 'Done'
+  'error' ->
+    log(status)
+    'Failed'
+  _ -> 'Unknown'              // _ = any other value
+
+kind = match shape
+  is Circle -> 'round'        // a type test
+  _ -> 'other'
+
+message = match ~load(id)     // a Result
+  Ok(user) -> 'Hi ${user.name}'
+  Err(e) -> 'Error: ${e}'
+```
+
+```
+ value ─► pattern 1 ? ─► yes ─► arm 1
+            │ no
+            ▼
+          pattern 2 ? ─► yes ─► arm 2
+            │ no
+            ▼
+            _ ──────────────► default arm
+```
+
+- As a value, a `match` needs the arm `_` (or `Ok` and `Err` for a `Result`).
+- Each arm has one pattern: a value, `is Type`, `Ok(name)`, `Err(name)` or `_`.
+'''
+
+return = '''
+Leaves the function now, with a value or without one.
+
+Usually it is not written: a function with a return type (other than `void`) **returns its last
+line**. `return` is for leaving early.
+
+```nuclear
+discount(total: double) double
+  if total < 0
+    return 0.0          // early exit
+  total * 0.9           // returned without `return`
+```
+'''
+
+break = '''
+Leaves the innermost `for` or `while` now.
+
+```nuclear
+for user in users
+  if user.isAdmin()
+    found = user
+    break
+```
+'''
+
+continue = '''
+Skips the rest of this turn of the innermost `for` or `while` and goes to the next one.
+
+```nuclear
+for user in users
+  if not user.active
+    continue
+  notify(user)
+```
+'''
+
+yield = '''
+Gives one value from a **generator**: a function that uses `yield` produces a sequence of values,
+one at a time, instead of returning one value.
+
+```nuclear
+countTo(n: int) int          // the type of each value
+  for i in 0..n
+    yield i
+
+all(n: int) int
+  yield 0
+  yield ...countTo(n)        // every value of another generator
+```
+
+- With `~` inside, it is an asynchronous generator (a stream).
+- A generator does not return its last line.
+'''
+
+try = '''
+Runs a block and catches the errors thrown inside it.
+
+```nuclear
+try
+  data = ~fetchJson(url)
+  show(data)
+catch error
+  log(error.message)
+finally
+  close()
+```
+
+```
+ try ──► ok ──────────────────┐
+  │                           ├──► finally (always)
+  └─► error ──► catch ────────┘
+```
+
+For errors that are part of the business (not found, invalid), prefer a `Result<E, T>`: the
+compiler checks they are handled and they propagate on their own.
+'''
+
+catch = '''
+The block that runs when the `try` block throws. The name after it is the error.
+
+```nuclear
+try
+  user = parse(text)
+catch error
+  print('invalid: ${error}')
+```
+'''
+
+finally = '''
+A block that always runs after `try` (and `catch`): with or without an error. Used to release
+resources.
+
+```nuclear
+try
+  write(file, text)
+finally
+  file.close()
+```
+'''
+
+throw = '''
+Throws an error: execution stops and goes to the nearest `catch`.
+
+```nuclear
+withdraw(amount: double) void
+  if amount > balance
+    throw Exception('not enough money')
+  balance -= amount
+```
+
+For expected failures, return a `Result<E, T>` with `Err(...)` instead.
+'''
+
+and = '''
+Logical AND: true when both sides are true. The right side is evaluated only when the left one is
+true. It is `&&` in the target.
+
+```nuclear
+canEdit = user.active and user.isAdmin()
+```
+'''
+
+or = '''
+Logical OR: true when any side is true. The right side is evaluated only when the left one is
+false. It is `||` in the target.
+
+```nuclear
+visible = isAdmin or post.public
+```
+
+For "this value, or another one if it is null", use `??`: `name = nick ?? 'guest'`.
+'''
+
+not = '''
+Logical NOT: inverts a boolean. It is `!` in the target.
+
+```nuclear
+if not user.active
+  return
+```
+
+`!` in front of a value does not exist (error): write `not`. After a value, `x!` asserts that it is
+not null.
+'''
+
+is = '''
+Type test: true when the value is of that type (or a subtype).
+
+```nuclear
+if shape is Circle
+  print(shape.radius)
+
+name = match value
+  is String -> value
+  _ -> '${value}'
+```
+'''
+
+true = '''
+The boolean value "yes". Booleans have the type `boolean`.
+
+```nuclear
+done: boolean = true
+```
+'''
+
+false = '''
+The boolean value "no". Booleans have the type `boolean`.
+
+```nuclear
+loading = false
+```
+'''
+
+null = '''
+No value. Only a **nullable** type, written with `?`, can hold it.
+
+```nuclear
+nick: string? = null
+name = nick ?? 'guest'          // a default when it is null
+city = user.address?.city       // ?. stops at a null
+length = nick!.length           // ! asserts it is not null
+```
+'''
+
+this = '''
+The receiver of the current method. Module members are used **without** `this`; inside an
+`extension`, `this` is the extended value.
+
+```nuclear
+extension NumberParsing on String
+  parseInt() int
+    int.parse(this)
+```
+
+To name a member explicitly (when a parameter has the same name), write `$name`:
+
+```nuclear
+setName(name: string)
+  $name = name
+```
+'''
+
+super = '''
+The base module (the one after `:` in the header).
+
+| Form | Meaning |
+|---|---|
+| `super.method()` | calls the base version of a method you override |
+| `super(args)` | first line of a constructor: builds the base |
+
+```nuclear
+Animal
+  (name: string)
+
+  describe() string
+    name
+
+Dog: Animal
+  (name: string, breed: string)
+    super(name)
+
+  describe() string
+    '${super.describe()}, a ${breed}'
+```
+
+Without `super(...)` the base is built without arguments.
+'''
+
+[builtins]
+
+Result = '''
+`Result<E, T>`: the value of an operation that can **fail**. The error type goes **first** (like
+`Either`): `Ok(value)` is the success (a `T`) and `Err(error)` the failure (an `E`).
+
+```nuclear
+findUser(id: string) Result<string, User>
+  if id == ''
+    return Err('empty id')
+  Ok(User(id))
+```
+
+**Automatic propagation.** Inside a function that returns `Result`, a call that returns `Result`
+is unwrapped: on `Ok` the expression is the value, on `Err` the function returns that error.
+
+```nuclear
+buy(id: string) Result<string, Order>
+  user = findUser(id)       // a User; on Err, buy returns it
+  stock = checkStock(id)    // not run when findUser failed
+  Ok(Order(user, stock))
+```
+
+```
+ findUser ──Ok(user)──► checkStock ──Ok(stock)──► Ok(Order)
+    │                       │
+  Err(e)                  Err(e)
+    └───────────┬───────────┘
+                ▼
+          buy returns Err(e)
+```
+
+**Handling it by hand**
+
+| Write | Does |
+|---|---|
+| `match r` + `Ok(x) ->` / `Err(e) ->` | one arm per case |
+| `r.ok(v => ...)` | transforms the value |
+| `r.error(e => fallback)` | recovers with a value |
+| `r.error(e => log(e))` | observes: the error still propagates |
+| `r: Result<E, T> = f()` | keeps the `Result` without unwrapping it |
+
+A `Result` that nothing handles is error `N0108`.
+'''
+
+Ok = '''
+`Ok(value)`: the success of a `Result<E, T>`, holding a `T`. `Ok()` without a value is the success
+of a `Result<E, void>`.
+
+```nuclear
+parseAge(text: string) Result<string, int>
+  n = int.tryParse(text)
+  if n == null
+    return Err('not a number')
+  Ok(n!)
+```
+
+`Ok(...)` is always written: a plain value on the last line is not turned into `Ok`. In a `match`,
+`Ok(name) ->` takes the value.
+'''
+
+Err = '''
+`Err(error)`: the failure of a `Result<E, T>`, holding an `E`.
+
+```nuclear
+withdraw(amount: double) Result<string, double>
+  if amount > balance
+    return Err('not enough money')
+  balance -= amount
+  Ok(balance)
+```
+
+Inside a function that returns `Result`, a call that gives `Err` ends that function with the same
+`Err` (its error type must match, `N0109`). In a `match`, `Err(name) ->` takes the error.
+'''
+
+[types]
+
+string = '''
+Text. Single or double quotes work the same; `${expr}` inserts a value; `"""` opens text of several
+lines without the common indentation.
+
+```nuclear
+name: string = 'Ana'
+hello = "Hello ${name}!"
+prompt = """
+  You are a helpful assistant.
+  Answer in ${language}.
+  """
+```
+'''
+
+int = '''
+A whole number. `1_000_000` and `0xff` are valid literals.
+
+```nuclear
+count: int = 0
+n = int.parse('42')
+```
+'''
+
+double = '''
+A number with decimals.
+
+```nuclear
+price: double = 9.99
+total = price * 1.16
+```
+'''
+
+number = '''
+Any number (`int` or `double`).
+
+```nuclear
+sum(a: number, b: number) number = a + b
+```
+'''
+
+boolean = '''
+`true` or `false`. Combined with `and`, `or` and `not`.
+
+```nuclear
+active: boolean = true
+canEdit = active and not locked
+```
+'''
+
+void = '''
+"Returns nothing". A function without a return type returns its last line; write `void` so it
+returns nothing.
+
+```nuclear
+log(message: string) void
+  print('[app] ${message}')
+```
+'''
+
+any = '''
+Any type: the compiler checks nothing about the value. Prefer a precise type, or `as` when you know
+it.
+
+```nuclear
+raw: any = jsonDecode(text)
+id = raw['id'] as int
+```
+'''
+
+dynamic = '''
+Any type, checked only at run time. Prefer a precise type.
+'''
+
+[tags]
+
+param = '''
+`@param name text`: documents a parameter. The editor shows it next to the parameter while you
+write the call.
+
+```nuclear
+// Price with tax.
+ * @param amount price before tax
+withTax(amount: double) double
+  amount * 1.16
+```
+'''
+
+return = '''
+`@return text` (or `@returns`): what the function gives back.
+'''
+
+throws = '''
+`@throws text`: an error the function can throw.
+'''
+
+example = '''
+`@example [caption]`: an example. The lines below it, more indented, are Nuclear code and keep
+their layout.
+
+```nuclear
+// Joins the words.
+ * @example
+ *   join(['a', 'b'])   // 'a b'
+join(words: string[]) string
+  words.join(' ')
+```
+'''
+
+see = '''
+`@see text`: a related declaration or link.
+'''
+
+deprecated = '''
+`@deprecated [reason]`: the declaration should not be used any more. The editor strikes it
+through; Dart also gets `@Deprecated(...)`.
+'''
+
+since = '''
+`@since version`: the version that added the declaration.
+'''

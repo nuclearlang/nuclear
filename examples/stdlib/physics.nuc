@@ -1,0 +1,25 @@
+// Physics formulas: the operators and Nuclear's Math are enough.
+g = 9.80665
+
+f(x: double) string = x.toFixed(3)
+
+kineticEnergy(mass: double, speed: double) double = 0.5 * mass * speed ** 2
+
+// range of a projectile on flat ground, angle in degrees
+projectileRange(speed: double, degrees: double) double
+  radians = degrees * Math.pi / 180
+  speed ** 2 * Math.sin(2 * radians) / g
+
+fallTime(height: double) double = Math.sqrt(2 * height / g)
+
+gravity(m1: double, m2: double, distance: double) double = 6.674e-11 * m1 * m2 / distance ** 2
+
+pendulumPeriod(length: double) double = 2 * Math.pi * Math.sqrt(length / g)
+
+main() void
+  print("kinetic", f(kineticEnergy(2, 3)))
+  print("range", f(projectileRange(20, 45)))
+  print("fall", f(fallTime(100)))
+  print("gravity", (gravity(5.972e24, 7.348e22, 3.844e8) / 1e20).toFixed(4))
+  print("pendulum", f(pendulumPeriod(1)))
+  print("celsius", f((98.6 - 32) * 5 / 9))

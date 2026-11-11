@@ -1,0 +1,104 @@
+// A tour of the base language in Python
+Role
+  admin
+  user
+
+Status
+  active("active")
+  banned("banned")
+
+Shape
+  area() double
+
+User(name: string, age: int = 0)
+  role: Role = Role.user
+  tags: string[] = []
+
+  greet(other: User) string
+    "Hi ${other.name}, I am ${name} {literal}"
+
+  isAdult() boolean
+    age >= 18
+
+Admin: User
+  level: int = 1
+
+  greet(other: User) string
+    "Admin ${name}"
+
+Square(side: double) > Shape
+  area() double
+    side * side
+
+Box<T>(value: T)
+  get() T
+    value
+
+divide(a: int, b: int) Result<string, int>
+  if b == 0
+    return Err("division by zero")
+  Ok(a ~/ b)
+
+half(n: int) Result<string, int>
+  x = divide(n, 2)
+  Ok(x + 0)
+
+squares(limit: int) int
+  for i in 0..limit
+    yield i * i
+
+label(n: int) string
+  match n
+    0 -> "zero"
+    1 -> "one"
+    _ -> "many"
+
+fetchName(id: int) string
+  ~asyncio.sleep(0)
+  "user${id}"
+
+run() void
+  users = [User("Ana", age = 30), User("Luis")]
+  for u in users
+    print(u.greet(users[0]), u.isAdult())
+  adults = users.copy()
+  adults.sort(key = (u: User) => u.age)
+  total = 0
+  for i in 0..5
+    total += i
+  print(total, 2 ** 10, 7 ~/ 2, 7 % 3, 0xff & 0x0f, 1 << 4)
+  m = { "a": 1, "b": 2 }
+  for k, v in m
+    print(k, v)
+  print("a" in m, label(1), list(squares(4)))
+  r: Result<string, int> = half(10)
+  print(r.isOk, r.value)
+  e: Result<string, int> = divide(1, 0)
+  print(e.isErr, e.error)
+  s = Square(3.0)
+  print(s.area(), Box(5).get())
+  name: string? = null
+  print(name ?? "nobody")
+  big = if total > 5
+    "big"
+  else
+    "small"
+  print(big)
+  try
+    raiseIt()
+  catch err
+    print("caught", err)
+  doubled = list(map((u: User) => u.age * 2, users))
+  print(doubled)
+  names = list(map((u: User)
+    n = u.name.upper()
+    n + "!"
+  , users))
+  print(names)
+  print(asyncio.run(fetchName(7)))
+
+raiseIt() void
+  throw ValueError("boom")
+
+use asyncio
+run()

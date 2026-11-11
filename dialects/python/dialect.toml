@@ -1,0 +1,311 @@
+# python dialect: how each Nuclear construct is written in Python 3.12+ (PEP 8, PEP 695 generics, typed).
+# A "target" dialect: it extends no other, so it defines every [syntax] template. fastapi extends it.
+# The generated code passes `pyright --strict`. Format and variables: spec/dialects.md or `nuclear spec`.
+
+[dialect]
+name = "python"
+description = "Python 3.12+ typed (PEP 8, PEP 695 generics), checked with pyright --strict"
+file_extension = "py"
+indent = "    "
+# type definitions (spec/definitions.md): the standard library; packages of defs/python/<package>/<version>/
+defs = ["python@3.14"]
+
+[options]
+implicit_self = false            # members are written with self.
+named_args = "native"            # f(x = 1) → f(x=1)
+declare_ctor_fields = true       # User(name: string) → name: str at class level + self.name = name
+init_fields = true               # fields with a default are set in __init__ (no shared mutable defaults)
+optional_params_nullable = true  # name?: string → name: str | None = None
+snake_case_names = true          # getOne() → get_one(): the .nuc keeps Nuclear's camelCase, Python gets PEP 8 names
+doc_inside = true                # a doc comment is the docstring of its function, method or class
+hoist_block_lambdas = true       # a lambda with a block becomes a local def: Python lambdas are one expression
+interp_prefix = "f"              # "Hi ${name}" → f"Hi {name}"
+interp_brace_escape = true       # literal { } inside an f-string are doubled
+interp_open = "{"
+interp_close = "}"
+string_quote = '"'
+interp_quote = '"'
+dollar_escape = "never"
+reserved_escape = "suffix"
+max_bases = 0                    # multiple inheritance
+catch_var = "error"
+cascade_statements = true        # p = Paint() + ..color = x → p = Paint(); p.color = x
+module_separator = "."           # use langchain_core/tools → from langchain_core.tools import ...
+type_args_as_args = true         # inject<Repo>() → inject(Repo): Python passes classes as values
+toplevel_gap = 2                 # PEP 8: two blank lines between top-level declarations
+line_width = 88                  # black / ruff
+omit_null_default = false
+
+[syntax]
+# annotations are evaluated lazily (a method can name its own class; Python 3.12 and 3.13 need it)
+file_prelude = "from __future__ import annotations"
+
+# --- imports ---
+import_names = "from {{module}} import {{names}}"
+# imports for the type checker only (kinds with type_imports: two entities that refer to each other)
+type_imports = "if TYPE_CHECKING:\n{{imports}}"
+import_alias = "import {{module}} as {{alias}}"
+import_default = "import {{module}}"
+import_file = "import {{path}}"
+module_path = "{{path}}"
+file_path = "{{path}}"
+project_import = "app.{{path}}"
+
+# --- declarations ---
+export = ""
+class = """
+{{decorators}}class {{name}}{{generics}}{{#extends}}({{extends}}{{#implements}}, {{implements}}{{/implements}}){{/extends}}{{^extends}}{{#implements}}({{implements}}){{/implements}}{{/extends}}:
+    {{#doc}}{{doc}}
+
+    {{/doc}}{{#members}}{{members}}{{/members}}{{^members}}{{^doc}}pass{{/doc}}{{/members}}"""
+interface = """
+{{decorators}}class {{name}}{{generics}}(Protocol{{#extends}}, {{extends}}{{/extends}}):
+    {{#members}}{{members}}{{/members}}{{^members}}...{{/members}}"""
+interface_field = "{{name}}: {{type}}{{#optional}} | None{{/optional}}"
+interface_method = "{{#async}}async {{/async}}def {{name}}{{generics}}(self{{#params}}, {{params}}{{/params}}) -> {{#ret}}{{ret}}{{/ret}}{{^ret}}None{{/ret}}: ..."
+enum = """
+class {{name}}(Enum):
+    {{#items_list}}
+    {{.}}
+    {{/items_list}}"""
+enum_item = "{{name}} = {{#value}}{{value}}{{/value}}{{^value}}auto(){{/value}}"
+function = """
+{{decorators}}{{#async}}async {{/async}}def {{name}}{{generics}}({{params}}){{#ret}} -> {{ret}}{{/ret}}:
+    {{#doc}}{{doc}}
+    {{/doc}}{{body}}"""
+method = """
+{{decorators}}{{#mods.static}}@staticmethod
+{{/mods.static}}{{#mods.get}}@property
+{{/mods.get}}{{#mods.set}}@{{name}}.setter
+{{/mods.set}}{{#override}}@override
+{{/override}}{{#async}}async {{/async}}def {{name}}{{generics}}({{^mods.static}}self{{#params}}, {{/params}}{{/mods.static}}{{params}}){{#ret}} -> {{ret}}{{/ret}}{{^ret}}{{#mods.set}} -> None{{/mods.set}}{{/ret}}:
+    {{#doc}}{{doc}}
+    {{/doc}}{{body}}"""
+method_signature = """
+{{decorators}}{{#mods.static}}@staticmethod
+{{/mods.static}}{{#mods.get}}@property
+{{/mods.get}}{{#override}}@override
+{{/override}}{{#async}}async {{/async}}def {{name}}{{generics}}({{^mods.static}}self{{#params}}, {{/params}}{{/mods.static}}{{params}}) -> {{#ret}}{{ret}}{{/ret}}{{^ret}}None{{/ret}}: ..."""
+field = "{{decorators}}{{name}}: {{#type}}{{type}}{{#optional}} | None{{/optional}}{{/type}}{{^type}}Any{{/type}}{{^in_init}}{{#default}} = {{default}}{{/default}}{{/in_init}}"
+constructor = """
+def __init__(self{{#params}}, {{params}}{{/params}}) -> None:
+    {{#body}}{{body}}{{/body}}{{^body}}pass{{/body}}"""
+field_init = "self.{{name}} = {{value}}"
+super_ctor = "super().__init__({{args}})"
+ctor_param = "{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}{{^default}}{{#optional}} = None{{/optional}}{{/default}}"
+param = "{{decorators}}{{name}}{{#type}}: {{type}}{{/type}}{{#default}} = {{default}}{{/default}}{{^default}}{{#optional}} = None{{/optional}}{{/default}}"
+params_named_group = "*, {{params}}"
+decorator = "@{{name}}{{#has_args}}({{args}}){{/has_args}}"
+generics = "[{{names}}]"
+generic_param = "{{name}}{{#bound}}: {{bound}}{{/bound}}"
+local_function = """
+{{#async}}async {{/async}}def {{name}}({{params}}):
+    {{body}}"""
+main = """
+def main() -> None:
+    {{body}}"""
+comment = "# {{text}}"
+doc_comment = { file = "templates/doc_comment.tpl" }
+
+# --- statements ---
+const_decl = "{{name}}{{#type}}: {{type}}{{/type}} = {{value}}"
+let_decl = "{{name}}{{#type}}: {{type}}{{/type}} = {{value}}"
+declare = "{{name}}: {{#type}}{{type}}{{/type}}{{^type}}Any{{/type}}"
+assign = "{{target}} {{op}} {{value}}"
+expr_stmt = "{{expr}}"
+return = "return{{#value}} {{value}}{{/value}}"
+if = """
+if {{cond}}:
+    {{body}}"""
+else_if = """
+
+elif {{cond}}:
+    {{body}}"""
+else = """
+
+else:
+    {{body}}"""
+for_in = """
+for {{var}} in {{iter}}:
+    {{body}}"""
+for_range = """
+for {{var}} in range({{start}}, {{end}}):
+    {{body}}"""
+for_entries = """
+for {{key}}, {{value}} in {{#map}}{{iter}}.items(){{/map}}{{^map}}{{iter}}.items(){{/map}}:
+    {{body}}"""
+while = """
+while {{cond}}:
+    {{body}}"""
+try = """
+try:
+    {{body}}{{#catch}}
+except Exception as {{catch_var}}:
+    {{catch_body}}{{/catch}}{{#finally}}
+finally:
+    {{finally_body}}{{/finally}}"""
+throw = "raise {{value}}"
+break = "break"
+continue = "continue"
+yield = "yield {{value}}"
+yield_all = "yield from {{value}}"
+
+# --- expressions ---
+self_member = "self.{{name}}"
+this = "self"
+super = "super()"
+null = "None"
+true = "True"
+false = "False"
+list = "[{{items}}]"
+object = "{{{entries}}}"
+object_entry = "{{key}}: {{value}}"
+object_key_ident = "\"{{key}}\""
+object_key_string = "\"{{key}}\""
+object_shorthand = "\"{{key}}\": {{key}}"
+object_spread = "**{{expr}}"
+call = "{{callee}}({{args}})"
+construct = "{{callee}}({{args}})"
+named_arg = "{{name}}={{value}}"
+spread_arg = "*{{expr}}"
+list_if = "*([{{value}}] if {{cond}} else [])"
+cascade = "{{target}}"
+cascade_self = ""
+pattern_ignore = "_"
+pattern_assign = "{{target}} = {{value}}"
+member = "{{object}}.{{name}}"
+optional_member = "({{object}}.{{name}} if {{object}} is not None else None)"
+# a map read is None when the key is absent (spec/library.md §3); a list index stays an index
+index = "{{#map}}{{object}}.get({{index}}){{/map}}{{^map}}{{object}}[{{index}}]{{/map}}"
+await = "await {{expr}}"
+ternary = "{{then}} if {{cond}} else {{else}}"
+# `x is int` must not accept booleans (bool is a subclass of int in Python)
+is = "{{#t.list}}isinstance({{expr}}, list){{/t.list}}{{^t.list}}{{#t.is.int}}type({{expr}}) is int{{/t.is.int}}{{^t.is.int}}isinstance({{expr}}, {{type}}){{/t.is.int}}{{/t.list}}"
+cast = "cast({{type}}, {{expr}})"
+non_null = { template = "_sure({{expr}})", helper = "def _sure[T](x: T | None) -> T:\n    assert x is not None\n    return x" }   # pyright: the value is not None
+# never written: options.hoist_block_lambdas turns a lambda with a block into a local_function
+lambda = "lambda {{names}}: {{body}}"
+lambda_expr = "lambda{{#names}} {{names}}{{/names}}: {{expr}}"
+
+# --- Result<E, T> (spec/nuclear-base.md §3.2): templates/result.tpl, the dialect's own runtime ---
+result_runtime = { file = "templates/result.tpl" }
+result_ok = "Ok({{#value}}{{value}}{{/value}}{{^value}}None{{/value}})"
+result_err = "Err({{value}})"
+result_is_ok = "{{result}}.is_ok"
+result_is_err = "{{result}}.is_err"
+result_value = "{{result}}.value"
+result_error = "{{result}}.error"
+result_propagate = """
+if {{result}}.is_err:
+    return Err({{result}}.error)"""
+result_then = "{{target}}.and_then({{callback}})"
+result_tap = "{{target}}.inspect({{callback}})"
+result_recover = "{{target}}.or_else({{callback}})"
+result_tap_error = "{{target}}.inspect_err({{callback}})"
+result_map = "{{target}}.map({{callback}})"
+result_get_or_else = "{{target}}.get_or_else({{callback}})"
+
+[types]
+Result = "Result"
+Error = "Exception"
+string = "str"
+int = "int"
+double = "float"
+number = "float"
+boolean = "bool"
+bool = "bool"
+void = "None"
+any = "Any"
+dynamic = "Any"
+unknown = "object"
+list = "list[{{item}}]"
+map = "dict[{{key}}, {{value}}]"
+nullable = "{{type}} | None"
+union = "{{types|join:\" | \"}}"
+string_literal = "Literal[{{value}}]"
+number_literal = "Literal[{{value}}]"
+function = "Callable[[{{types}}], {{ret}}]"
+generic = "{{name}}[{{args}}]"
+async = "{{type}}"
+Future = "Awaitable"
+DateTime = "datetime.datetime"
+Duration = "datetime.timedelta"
+Bytes = "bytes"
+Regex = "re.Pattern[str]"
+Match = "re.Match[str]"
+Set = "set"
+generator = "Iterator[{{type}}]"
+async_generator = "AsyncIterator[{{type}}]"
+
+[operators]
+and = "and"
+or = "or"
+not = "not "
+neg = "-"
+# with null: `x is None` (PEP 8)
+eq = "{{left_infix}} {{#null}}is{{/null}}{{^null}}=={{/null}} {{right_infix}}"
+not_eq = "{{left_infix}} {{#null}}is not{{/null}}{{^null}}!={{/null}} {{right_infix}}"
+lt = "<"
+gt = ">"
+lt_eq = "<="
+gt_eq = ">="
+add = "+"
+sub = "-"
+mul = "*"
+div = "/"
+rem = "%"
+coalesce = "{{left}} if {{left}} is not None else {{right}}"
+int_div = "//"
+pow = "**"
+bit_and = "&"
+bit_or = "|"
+bit_xor = "^"
+bit_not = "~"
+shl = "<<"
+shr = ">>"
+# Python ints have no width: >>> works as on a 32-bit value, like TypeScript
+ushr = "({{left}} % 0x100000000) >> {{right}}"
+in = "{{left}} in {{right}}"
+range = "range({{left}}, {{right}})"
+
+[names]
+# names the templates write: imported from typing / enum when the generated code uses them
+written = ["Any", "Protocol", "Callable", "Literal", "Iterator", "AsyncIterator", "Awaitable", "cast", "override", "Enum", "auto", "math", "json", "re", "base64", "datetime", "functools", "random", "asyncio"]
+
+[auto_imports]
+"typing" = ["TYPE_CHECKING", "Any", "Protocol", "Callable", "Literal", "Iterator", "AsyncIterator", "Awaitable", "cast", "override", "Never", "TypedDict", "Annotated", "ClassVar", "Final", "Self"]
+# modules the library templates write, imported as themselves (import math)
+"math" = ["math"]
+"json" = ["json"]
+"re" = ["re"]
+"base64" = ["base64"]
+"datetime" = ["datetime"]
+"functools" = ["functools"]
+"random" = ["random"]
+"asyncio" = ["asyncio"]
+"enum" = ["Enum", "auto", "StrEnum", "IntEnum"]
+"dataclasses" = ["dataclass", "field"]
+
+[modifiers]
+abstract = ""
+static = ""
+get = ""
+set = { prefix = "", void = true }   # a setter never returns
+
+# projects (spec/projects.md): the .nuc files go to the package app (from app.models.user import User)
+[project]
+sources = "app"
+
+[imports]
+asyncio = "asyncio"
+json = "json"
+math = "math"
+re = "re"
+os = "os"
+
+[functions]
+# print(a, b) writes the values separated by spaces, with Nuclear's text for booleans and null (spec/library.md §12)
+print = { template = "_print({{args}})", helper = "def _show(v: object) -> str:\n    if v is True:\n        return \"true\"\n    if v is False:\n        return \"false\"\n    if v is None:\n        return \"null\"\n    return str(v)\n\n\ndef _print(*args: object) -> None:\n    print(*(_show(a) for a in args))" }
+# the standard library (spec/library.md §10)
+delay = { template = "asyncio.sleep({{arg0}} / 1000)" }
+awaitAll = { template = "asyncio.gather(*{{arg0}})" }

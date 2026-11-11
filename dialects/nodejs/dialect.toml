@@ -1,0 +1,74 @@
+# nodejs dialect: TypeScript for Node.js.
+# Adds shortcuts for the native modules (`use fs/promises` → 'node:fs/promises') and automatic imports:
+# using `readFile(...)` in a .nuc adds `import { readFile } from 'node:fs/promises'` without writing `use`.
+
+[dialect]
+name = "nodejs"
+extends = "typescript"
+description = "TypeScript for Node.js: node: modules by short name, imported automatically when used"
+
+[names]
+globals = ["process", "Buffer", "__dirname", "__filename", "require", "module", "exports", "global"]
+
+# `use <shortcut>` → module. So `use fs/promises{ readFile }` does not need to write `node:`.
+[imports]
+assert = "node:assert"
+async_hooks = "node:async_hooks"
+buffer = "node:buffer"
+child_process = "node:child_process"
+cluster = "node:cluster"
+crypto = "node:crypto"
+dns = "node:dns"
+events = "node:events"
+fs = "node:fs"
+"fs/promises" = "node:fs/promises"
+http = "node:http"
+http2 = "node:http2"
+https = "node:https"
+net = "node:net"
+os = "node:os"
+path = "node:path"
+perf_hooks = "node:perf_hooks"
+process = "node:process"
+querystring = "node:querystring"
+readline = "node:readline"
+"readline/promises" = "node:readline/promises"
+stream = "node:stream"
+"stream/promises" = "node:stream/promises"
+string_decoder = "node:string_decoder"
+test = "node:test"
+timers = "node:timers"
+"timers/promises" = "node:timers/promises"
+tls = "node:tls"
+url = "node:url"
+util = "node:util"
+v8 = "node:v8"
+vm = "node:vm"
+worker_threads = "node:worker_threads"
+zlib = "node:zlib"
+
+# Symbol used in the code → automatic import of its module. Each symbol lives in a single module.
+[auto_imports]
+"node:fs/promises" = [
+  "readFile", "writeFile", "appendFile", "mkdir", "mkdtemp", "readdir", "opendir", "stat", "lstat",
+  "rm", "rmdir", "rename", "copyFile", "cp", "access", "unlink", "realpath", "symlink", "truncate",
+  "utimes", "chmod", "chown",
+]
+"node:fs" = [
+  "existsSync", "readFileSync", "writeFileSync", "appendFileSync", "mkdirSync", "readdirSync", "statSync",
+  "rmSync", "createReadStream", "createWriteStream", "watch",
+]
+"node:path" = ["join", "resolve", "dirname", "basename", "extname", "relative", "normalize", "isAbsolute", "sep"]
+"node:os" = ["homedir", "tmpdir", "hostname", "cpus", "EOL"]
+"node:http" = ["createServer", "IncomingMessage", "ServerResponse"]
+"node:crypto" = ["randomUUID", "randomBytes", "randomInt", "createHash", "createHmac", "timingSafeEqual"]
+"node:url" = ["fileURLToPath", "pathToFileURL"]
+"node:util" = ["promisify", "inspect", "parseArgs", "isDeepStrictEqual"]
+"node:events" = ["EventEmitter", "once"]
+"node:child_process" = ["spawn", "exec", "execSync", "execFile", "fork"]
+"node:stream" = ["Readable", "Writable", "Transform", "PassThrough"]
+"node:stream/promises" = ["pipeline", "finished"]
+"node:readline" = ["createInterface"]
+"node:zlib" = ["gzip", "gunzip", "createGzip", "createGunzip"]
+"node:worker_threads" = ["Worker", "isMainThread", "parentPort", "workerData"]
+"node:assert" = ["deepStrictEqual", "strictEqual"]

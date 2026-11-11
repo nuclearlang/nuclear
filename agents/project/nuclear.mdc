@@ -1,0 +1,8 @@
+---
+description: NuclearLang (.nuc) code
+globs: **/*.nuc
+alwaysApply: false
+---
+
+The `.nuc` files are NuclearLang, not TypeScript nor Dart. Follow AGENTS.md: read
+`nuclear spec --brief --dialect {dialect}` before writing, and run `{check}` after each change.

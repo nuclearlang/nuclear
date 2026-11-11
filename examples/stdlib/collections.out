@@ -1,0 +1,17 @@
+map 10,6,16,2,18,4 filter 8,2
+reduce 28 sum 28
+sort 1,2,3,5,8,9 desc 9,8,5,3,2,1
+find 8 index 2 none null
+any true all true count 3
+slice 3,8 in true first 5 last 2
+min 1 max 9 take 5,3 skip 9,2
+flat 1,2,3 unique 1,2,3
+zip a5,b3,c8
+range 0,1,2,3,4 total 5050
+map size 2 get 31 has false keys ana,luis
+entries ana=31,luis=25
+group 8,2 5,3,1,9
+sortedBy a,bb,ccc words a,bb
+set 3 true false 4
+mutate 0,3,1,9,2,7 6 true 7 3
+destructure 5 3 4

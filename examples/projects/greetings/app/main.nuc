@@ -1,0 +1,4 @@
+main() void
+  match greet("ana")
+    Ok(text) -> print(text)
+    Err(e) -> print(e)

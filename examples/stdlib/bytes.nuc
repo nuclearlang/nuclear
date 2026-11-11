@@ -1,0 +1,13 @@
+// Bytes with Nuclear's standard library: UTF-8, base64, hexadecimal and arithmetic over bytes.
+main() void
+  data = "Ñu ⚛".toBytes()
+  print("utf8", data.length, data.toHex())
+  print("decode", data.toText())
+  b64 = data.toBase64()
+  print("base64", b64)
+  back = Bytes.fromBase64(b64)
+  print("from base64", back.toText(), back.length == data.length)
+  print("from hex", Bytes.fromHex("4e7563").toText(), Bytes.of([72, 105]).toText())
+  print("slice", data.slice(0, 2).toHex(), data[0], data.toList().length)
+  checksum = data.toList().reduce(0, (sum, b) => (sum + b) & 0xff)
+  print("checksum", checksum)

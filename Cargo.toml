@@ -1,0 +1,20 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["Julian Molina"]
+repository = "https://github.com/nuclearlang/nuclear"
+homepage = "https://nuclearlang.github.io"
+
+[workspace.dependencies]
+nuclear-diag = { path = "crates/nuclear-diag" }
+nuclear-syntax = { path = "crates/nuclear-syntax" }
+nuclear-dialect = { path = "crates/nuclear-dialect" }
+nuclear-transpile = { path = "crates/nuclear-transpile" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"

@@ -1,0 +1,37 @@
+// Lists, maps and sets with Nuclear's standard library.
+main() void
+  xs = [5, 3, 8, 1, 9, 2]
+  print("map", xs.map((x) => x * 2).join(","), "filter", xs.filter((x) => x % 2 == 0).join(","))
+  print("reduce", xs.reduce(0, (a, b) => a + b), "sum", xs.sum())
+  print("sort", xs.sorted().join(","), "desc", xs.sorted().reversed().join(","))
+  print("find", xs.find((x) => x > 5), "index", xs.findIndex((x) => x > 5), "none", xs.find((x) => x > 50))
+  print("any", xs.any((x) => x > 8), "all", xs.all((x) => x > 0), "count", xs.count((x) => x > 4))
+  print("slice", xs.slice(1, 3).join(","), "in", 8 in xs, "first", xs.first, "last", xs.last)
+  print("min", xs.min(), "max", xs.max(), "take", xs.take(2).join(","), "skip", xs.skip(4).join(","))
+  print("flat", [[1, 2], [3]].flatten().join(","), "unique", [1, 1, 2, 3, 3].unique().join(","))
+  letters = ["a", "b", "c"]
+  print("zip", (0..3).map((i) => "${letters[i]}${xs[i]}").join(","))
+  print("range", (0..5).join(","), "total", (1..101).sum())
+  ages: <string, int> = {}
+  ages["ana"] = 31
+  ages["luis"] = 25
+  print("map size", ages.length, "get", ages["ana"], "has", "eva" in ages, "keys", ages.keys.join(","))
+  names: string[] = []
+  for name, age in ages
+    names.add("${name}=${age}")
+  print("entries", names.join(","))
+  groups = xs.groupBy((x) => x % 2 == 0 ? "even" : "odd")
+  print("group", groups["even"]!.join(","), groups["odd"]!.join(","))
+  bySize = ["bb", "a", "ccc"].sortedBy((w) => w.length)
+  print("sortedBy", bySize.join(","), "words", ["bb", "a"].sorted().join(","))
+  s = Set.of([1, 2, 3])
+  added = s.add(3)
+  print("set", s.length, 2 in s, added, s.union(Set.of([4])).length)
+  ys = xs.copy()
+  ys.add(7)
+  ys.insert(0, 0)
+  removed = ys.remove(8)
+  ys.removeAt(1)
+  print("mutate", ys.join(","), xs.length, removed, ys.removeLast(), ys.indexOf(9))
+  [first, second, ...rest] = xs
+  print("destructure", first, second, rest.length)

@@ -1,0 +1,214 @@
+# How TypeScript writes Nuclear's standard library (spec/library.md, ADR-0094; spec/typescript.md §8).
+# Variables: recv, args, argN, has_args, named.<name>, fn.param/fn.params/fn.body (an expression lambda argument),
+# argN_is.<base> (the static type of an argument), elem, type_args. A `helper` is written once per file.
+# Lists are arrays, maps `<K, V>` are plain objects, sets are Set, Bytes is Uint8Array, DateTime is Date (its
+# parts are read in UTC: Date has no UTC flag), Duration is a number of milliseconds, Regex is a RegExp with the
+# `g` flag (so matchAll and replaceAll work; test and find do not depend on lastIndex).
+
+[library.string]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.length === 0"
+codeAt = "{{recv}}.charCodeAt({{arg0}})"
+upper = "{{recv}}.toUpperCase()"
+lower = "{{recv}}.toLowerCase()"
+trim = "{{recv}}.trim()"
+trimStart = "{{recv}}.trimStart()"
+trimEnd = "{{recv}}.trimEnd()"
+startsWith = "{{recv}}.startsWith({{args}})"
+endsWith = "{{recv}}.endsWith({{args}})"
+indexOf = "{{recv}}.indexOf({{args}})"
+lastIndexOf = "{{recv}}.lastIndexOf({{args}})"
+substring = "{{recv}}.substring({{args}})"
+split = "{{recv}}.split({{arg0}})"
+chars = "[...{{recv}}]"
+replace = "{{recv}}.replace({{arg0}}, {{arg1}})"
+replaceAll = { template = "{{#fn}}_replaceWith({{recv}}, {{arg0}}, {{arg1}}){{/fn}}{{^fn}}{{recv}}.replaceAll({{arg0}}, {{arg1}}){{/fn}}", helper = "function _replaceWith(s: string, re: RegExp, f: (m: RegExpMatchArray) => string): string {\n  let out = '';\n  let last = 0;\n  for (const m of s.matchAll(re)) {\n    out += s.slice(last, m.index) + f(m);\n    last = m.index! + m[0].length;\n  }\n  return out + s.slice(last);\n}" }
+repeat = "{{recv}}.repeat({{arg0}})"
+padStart = "{{recv}}.padStart({{args}})"
+padEnd = "{{recv}}.padEnd({{args}})"
+toInt = { template = "_toInt({{recv}})", helper = "function _toInt(s: string): number | null {\n  return /^[+-]?\\d+$/.test(s.trim()) ? Number.parseInt(s, 10) : null;\n}" }
+toDouble = { template = "_toDouble({{recv}})", helper = "function _toDouble(s: string): number | null {\n  const n = Number(s.trim());\n  return s.trim() === '' || Number.isNaN(n) ? null : n;\n}" }
+compareTo = { template = "_compare({{recv}}, {{arg0}})", helper = "function _compare<T>(a: T, b: T): number {\n  return a < b ? -1 : a > b ? 1 : 0;\n}" }
+toBytes = "new TextEncoder().encode({{recv}})"
+
+[library.list]
+length = "{{recv}}.length"
+isEmpty = "{{recv}}.length === 0"
+first = "{{recv}}[0]"
+last = "{{recv}}.at(-1)!"
+add = "{{recv}}.push({{arg0}})"
+addAll = "{{recv}}.push(...{{arg0}})"
+insert = "{{recv}}.splice({{arg0}}, 0, {{arg1}})"
+remove = { template = "_remove({{recv}}, {{arg0}})", helper = "function _remove<T>(xs: T[], x: T): boolean {\n  const i = xs.indexOf(x);\n  if (i < 0) return false;\n  xs.splice(i, 1);\n  return true;\n}" }
+removeAt = "{{recv}}.splice({{arg0}}, 1)[0]"
+removeLast = "{{recv}}.pop()!"
+clear = "{{recv}}.splice(0)"
+indexOf = "{{recv}}.indexOf({{arg0}})"
+lastIndexOf = "{{recv}}.lastIndexOf({{arg0}})"
+map = "{{recv}}.map({{arg0}})"
+filter = "{{recv}}.filter({{arg0}})"
+find = "({{recv}}.find({{arg0}}) ?? null)"
+findIndex = "{{recv}}.findIndex({{arg0}})"
+any = "{{recv}}.some({{arg0}})"
+all = "{{recv}}.every({{arg0}})"
+count = "{{recv}}.filter({{arg0}}).length"
+reduce = "{{recv}}.reduce({{arg1}}, {{arg0}})"
+sum = "{{recv}}.reduce((a, b) => a + b, 0)"
+min = { template = "_min({{recv}})", helper = "function _min<T extends string | number>(xs: T[]): T | null {\n  let m: T | null = null;\n  for (const x of xs) if (m === null || x < m) m = x;\n  return m;\n}" }
+max = { template = "_max({{recv}})", helper = "function _max<T extends string | number>(xs: T[]): T | null {\n  let m: T | null = null;\n  for (const x of xs) if (m === null || x > m) m = x;\n  return m;\n}" }
+join = "{{recv}}.join({{#has_args}}{{arg0}}{{/has_args}}{{^has_args}}''{{/has_args}})"
+slice = "{{recv}}.slice({{args}})"
+take = "{{recv}}.slice(0, {{arg0}})"
+skip = "{{recv}}.slice({{arg0}})"
+reversed = "[...{{recv}}].reverse()"
+sorted = "[...{{recv}}].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))"
+sortedBy = { template = "_sortBy([...{{recv}}], {{arg0}})", helper = "function _sortBy<T, K>(xs: T[], key: (x: T) => K): T[] {\n  return xs.sort((a, b) => {\n    const ka = key(a);\n    const kb = key(b);\n    return ka < kb ? -1 : ka > kb ? 1 : 0;\n  });\n}" }
+reverse = "{{recv}}.reverse()"
+sort = "{{recv}}.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))"
+sortBy = { template = "_sortBy({{recv}}, {{arg0}})", helper = "function _sortBy<T, K>(xs: T[], key: (x: T) => K): T[] {\n  return xs.sort((a, b) => {\n    const ka = key(a);\n    const kb = key(b);\n    return ka < kb ? -1 : ka > kb ? 1 : 0;\n  });\n}" }
+unique = "[...new Set({{recv}})]"
+flatten = "{{recv}}.flat()"
+copy = "[...{{recv}}]"
+groupBy = { template = "_groupBy({{recv}}, {{arg0}})", helper = "function _groupBy<T>(xs: T[], key: (x: T) => string | number): Record<string, T[]> {\n  const out: Record<string, T[]> = {};\n  for (const x of xs) (out[String(key(x))] ??= []).push(x);\n  return out;\n}" }
+
+[library.map]
+length = "Object.keys({{recv}}).length"
+isEmpty = "Object.keys({{recv}}).length === 0"
+remove = { template = "_removeKey({{recv}}, {{arg0}})", helper = "function _removeKey<V>(m: Record<string, V>, k: string | number): V | null {\n  const v = m[k] ?? null;\n  delete m[k];\n  return v;\n}" }
+keys = "Object.keys({{recv}})"
+values = "Object.values({{recv}})"
+
+[library.set]
+length = "{{recv}}.size"
+isEmpty = "{{recv}}.size === 0"
+add = { template = "_addTo({{recv}}, {{arg0}})", helper = "function _addTo<T>(s: Set<T>, x: T): boolean {\n  const had = s.has(x);\n  s.add(x);\n  return !had;\n}" }
+remove = "{{recv}}.delete({{arg0}})"
+toList = "[...{{recv}}]"
+union = "new Set([...{{recv}}, ...{{arg0}}])"
+intersection = "new Set([...{{recv}}].filter((x) => {{arg0}}.has(x)))"
+difference = "new Set([...{{recv}}].filter((x) => !{{arg0}}.has(x)))"
+
+[library.number]
+abs = "Math.abs({{recv}})"
+sign = "Math.sign({{recv}})"
+round = { template = "_round({{recv}})", helper = "function _round(x: number): number {\n  return Math.sign(x) * Math.round(Math.abs(x));\n}" }
+floor = "Math.floor({{recv}})"
+ceil = "Math.ceil({{recv}})"
+truncate = "Math.trunc({{recv}})"
+toFixed = "{{recv}}.toFixed({{arg0}})"
+toInt = "Math.trunc({{recv}})"
+toDouble = "{{recv}}"
+toRadix = "{{recv}}.toString({{arg0}})"
+
+[library.double]
+isNaN = "Number.isNaN({{recv}})"
+isFinite = "Number.isFinite({{recv}})"
+
+[library.boolean]
+toString = "String({{recv}})"
+
+[library.any]
+toString = "String({{recv}})"
+
+[library.bytes]
+length = "{{recv}}.length"
+toText = "new TextDecoder().decode({{recv}})"
+slice = "{{recv}}.slice({{args}})"
+toList = "[...{{recv}}]"
+toBase64 = "btoa(String.fromCharCode(...{{recv}}))"
+toHex = "[...{{recv}}].map((b) => b.toString(16).padStart(2, '0')).join('')"
+
+[library.datetime]
+year = "{{recv}}.getUTCFullYear()"
+month = "({{recv}}.getUTCMonth() + 1)"
+day = "{{recv}}.getUTCDate()"
+hour = "{{recv}}.getUTCHours()"
+minute = "{{recv}}.getUTCMinutes()"
+second = "{{recv}}.getUTCSeconds()"
+millisecond = "{{recv}}.getUTCMilliseconds()"
+weekday = "({{recv}}.getUTCDay() || 7)"
+millis = "{{recv}}.getTime()"
+isUtc = "true"
+add = "new Date({{recv}}.getTime() + {{arg0}})"
+subtract = "new Date({{recv}}.getTime() - {{arg0}})"
+difference = "({{recv}}.getTime() - {{arg0}}.getTime())"
+isBefore = "{{recv}}.getTime() < {{arg0}}.getTime()"
+isAfter = "{{recv}}.getTime() > {{arg0}}.getTime()"
+toUtc = "{{recv}}"
+toLocal = "{{recv}}"
+toIso = "{{recv}}.toISOString()"
+
+[library.duration]
+inDays = "Math.trunc({{recv}} / 86400000)"
+inHours = "Math.trunc({{recv}} / 3600000)"
+inMinutes = "Math.trunc({{recv}} / 60000)"
+inSeconds = "Math.trunc({{recv}} / 1000)"
+inMillis = "{{recv}}"
+
+[library.regex]
+test = "{{arg0}}.search({{recv}}) !== -1"
+find = "([...{{arg0}}.matchAll({{recv}})][0] ?? null)"
+findAll = "[...{{arg0}}.matchAll({{recv}})]"
+
+[library.match]
+text = "{{recv}}[0]"
+start = "{{recv}}.index!"
+end = "({{recv}}.index! + {{recv}}[0].length)"
+group = "({{recv}}.groups?.[{{arg0}}] ?? null)"
+
+[library.Math]
+pi = "Math.PI"
+e = "Math.E"
+sqrt = "Math.sqrt({{arg0}})"
+cbrt = "Math.cbrt({{arg0}})"
+hypot = "Math.hypot({{args}})"
+sin = "Math.sin({{arg0}})"
+cos = "Math.cos({{arg0}})"
+tan = "Math.tan({{arg0}})"
+asin = "Math.asin({{arg0}})"
+acos = "Math.acos({{arg0}})"
+atan = "Math.atan({{arg0}})"
+atan2 = "Math.atan2({{args}})"
+exp = "Math.exp({{arg0}})"
+log = "Math.log({{arg0}})"
+log10 = "Math.log10({{arg0}})"
+log2 = "Math.log2({{arg0}})"
+min = "Math.min({{args}})"
+max = "Math.max({{args}})"
+clamp = "Math.min(Math.max({{arg0}}, {{arg1}}), {{arg2}})"
+random = "Math.random()"
+
+[library.Json]
+encode = "JSON.stringify({{arg0}})"
+decode = "JSON.parse({{arg0}})"
+
+[library.String]
+fromCodes = "String.fromCharCode(...{{arg0}})"
+
+[library.DateTime]
+now = "new Date()"
+utc = "new Date(Date.UTC({{arg0}}, {{arg1}} - 1{{#arg2}}, {{arg2}}{{/arg2}}{{#arg3}}, {{arg3}}{{/arg3}}{{#arg4}}, {{arg4}}{{/arg4}}{{#arg5}}, {{arg5}}{{/arg5}}{{#arg6}}, {{arg6}}{{/arg6}}))"
+new = "new Date({{arg0}}, {{arg1}} - 1{{#arg2}}, {{arg2}}{{/arg2}}{{#arg3}}, {{arg3}}{{/arg3}}{{#arg4}}, {{arg4}}{{/arg4}}{{#arg5}}, {{arg5}}{{/arg5}}{{#arg6}}, {{arg6}}{{/arg6}})"
+parse = { template = "_parseDate({{arg0}})", helper = "function _parseDate(s: string): Date | null {\n  const t = Date.parse(s);\n  return Number.isNaN(t) ? null : new Date(t);\n}" }
+fromMillis = "new Date({{arg0}})"
+
+[library.Duration]
+new = "({{#named.days}}{{named.days}} * 86400000 + {{/named.days}}{{#named.hours}}{{named.hours}} * 3600000 + {{/named.hours}}{{#named.minutes}}{{named.minutes}} * 60000 + {{/named.minutes}}{{#named.seconds}}{{named.seconds}} * 1000 + {{/named.seconds}}{{#named.milliseconds}}{{named.milliseconds}} + {{/named.milliseconds}}0)"
+
+[library.Regex]
+new = "new RegExp({{arg0}}, 'g{{#named.ignoreCase}}i{{/named.ignoreCase}}{{#named.multiline}}m{{/named.multiline}}')"
+
+[library.Set]
+new = "new Set{{#type_args}}<{{type_args}}>{{/type_args}}()"
+of = "new Set({{arg0}})"
+
+[library.Bytes]
+of = "Uint8Array.from({{arg0}})"
+fromBase64 = "Uint8Array.from(atob({{arg0}}), (c) => c.charCodeAt(0))"
+fromHex = { template = "_fromHex({{arg0}})", helper = "function _fromHex(h: string): Uint8Array {\n  return Uint8Array.from(h.match(/../g) ?? [], (b) => Number.parseInt(b, 16));\n}" }
+
+[library.error]
+message = "({{recv}} as Error).message"
+
+[library.Error]
+new = "new Error({{arg0}})"

@@ -1,0 +1,105 @@
+# The release of NuclearLang: on a tag v<version> (the version of Cargo.toml [workspace.package]) every target's archive
+# is built (tools/release/package.sh), with the VS Code extension, and published in the GitHub release that the
+# installers download from (tools/release/install.sh, install.ps1; also served by the website).
+#
+# The working tree is assembled as on a developer's machine (plan 006): this repository at the root and the other
+# repositories of the organization inside it. Their names are below.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ORG: nuclearlang
+  # folder:repository of the repositories inside this one
+  INSIDE: dragonfly:dragonfly dragonfly-mobile:dragonfly-mobile dragonfly-backend:dragonfly-backend dragonfly-web:dragonfly-web nuclear-vscode:nuclear-vscode
+
+jobs:
+  archive:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+          - { runner: macos-13, target: x86_64-apple-darwin }
+          - { runner: macos-14, target: aarch64-apple-darwin }
+          - { runner: windows-latest, target: x86_64-pc-windows-msvc }
+          - { runner: windows-latest, target: aarch64-pc-windows-msvc }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: The repositories inside this one
+        run: |
+          for pair in $INSIDE; do
+            git clone --depth 1 ${GITHUB_REF_TYPE:+--branch "$GITHUB_REF_NAME"} "https://github.com/$ORG/${pair#*:}" "${pair%%:*}" \
+              || git clone --depth 1 "https://github.com/$ORG/${pair#*:}" "${pair%%:*}"
+          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The JavaScript runtimes (their dist/)
+        run: |
+          for p in */packages/*/package.json packages/*/package.json; do
+            [ -f "$p" ] || continue
+            d=$(dirname "$p")
+            if grep -q '"build"' "$p"; then (cd "$d" && npm ci --no-audit --no-fund && npm run build); fi
+          done
+      - name: Rust target
+        run: rustup target add ${{ matrix.target }}
+      - name: musl (static Linux binaries, any distribution)
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Archive
+        run: tools/release/package.sh ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+
+  vscode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The repositories inside this one
+        run: |
+          for pair in $INSIDE; do git clone --depth 1 "https://github.com/$ORG/${pair#*:}" "${pair%%:*}"; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The extension (its bundled server is the Linux one; the installers link the platform's own nuclear-lsp)
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          cd nuclear-vscode && npm ci --no-audit --no-fund && npm run package
+          mkdir -p ../dist && cp nuclearlang-*.vsix "../dist/nuclearlang-$version.vsix"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vscode
+          path: dist/*.vsix
+
+  publish:
+    needs: [archive, vscode]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: The installers, also as assets of the release
+        run: cp tools/release/install.sh tools/release/install.ps1 dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

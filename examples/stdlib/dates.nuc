@@ -1,0 +1,16 @@
+// Dates, durations and JSON with Nuclear's standard library.
+main() void
+  d = DateTime.utc(2026, 11, 3, 14, 30)
+  print("iso", d.toIso())
+  print("parts", d.year, d.month, d.day, d.hour, d.minute, d.isUtc)
+  later = d.add(Duration(hours = 36))
+  print("plus 36h", later.toIso(), later.isAfter(d))
+  print("days between", DateTime.utc(2026, 12, 25).difference(DateTime.utc(2026, 11, 3)).inDays)
+  print("parse", DateTime.parse("2026-01-01T00:00:00Z")!.millis ~/ 1000, DateTime.parse("not a date") == null)
+  print("weekday", d.weekday, DateTime.fromMillis(0).year)
+  span = Duration(days = 1, minutes = 90)
+  print("duration", span.inHours, span.inMinutes, span.inSeconds)
+  text = Json.encode({ "name": "Ana", "age": 31, "tags": ["a", "b"] })
+  print("encode", text)
+  value = Json.decode(text)
+  print("decode", value["name"], value["tags"][1])

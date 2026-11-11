@@ -1,0 +1,133 @@
+{
+  "tasks": {
+    "location-detail": {
+      "id": "location-detail",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 89,
+      "turns": 9,
+      "cost_usd": 0.5409496000000001,
+      "input_tokens": 413372,
+      "output_tokens": 3993,
+      "check_runs": 3,
+      "red_check_runs": 1
+    },
+    "episodes-cache": {
+      "id": "episodes-cache",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 121,
+      "turns": 11,
+      "cost_usd": 0.6183836,
+      "input_tokens": 544774,
+      "output_tokens": 4589,
+      "check_runs": 4,
+      "red_check_runs": 1
+    },
+    "feedback-form": {
+      "id": "feedback-form",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 118,
+      "turns": 18,
+      "cost_usd": 0.8020692,
+      "input_tokens": 1059725,
+      "output_tokens": 5521,
+      "check_runs": 5,
+      "red_check_runs": 0
+    },
+    "favorite-event": {
+      "id": "favorite-event",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 96,
+      "turns": 9,
+      "cost_usd": 0.4648264,
+      "input_tokens": 399378,
+      "output_tokens": 1886,
+      "check_runs": 3,
+      "red_check_runs": 0
+    },
+    "random-tests": {
+      "id": "random-tests",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 115,
+      "turns": 13,
+      "cost_usd": 0.5412314,
+      "input_tokens": 504763,
+      "output_tokens": 3569,
+      "check_runs": 7,
+      "red_check_runs": 4
+    },
+    "fan-guard": {
+      "id": "fan-guard",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 113,
+      "turns": 10,
+      "cost_usd": 0.5500094000000001,
+      "input_tokens": 430730,
+      "output_tokens": 3446,
+      "check_runs": 4,
+      "red_check_runs": 0
+    },
+    "status-filter": {
+      "id": "status-filter",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 107,
+      "turns": 11,
+      "cost_usd": 0.6200079999999999,
+      "input_tokens": 498032,
+      "output_tokens": 5209,
+      "check_runs": 5,
+      "red_check_runs": 1
+    },
+    "ts-stats": {
+      "id": "ts-stats",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 16,
+      "turns": 6,
+      "cost_usd": 0.3255764,
+      "input_tokens": 131112,
+      "output_tokens": 1175,
+      "check_runs": 1,
+      "red_check_runs": 0
+    },
+    "ts-text": {
+      "id": "ts-text",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 36,
+      "turns": 12,
+      "cost_usd": 0.43088360000000003,
+      "input_tokens": 359838,
+      "output_tokens": 3262,
+      "check_runs": 3,
+      "red_check_runs": 0
+    },
+    "dart-csv": {
+      "id": "dart-csv",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 28,
+      "turns": 7,
+      "cost_usd": 0.3863458,
+      "input_tokens": 181951,
+      "output_tokens": 2757,
+      "check_runs": 2,
+      "red_check_runs": 0
+    }
+  },
+  "summary": {
+    "tasks": 10,
+    "green": 10,
+    "avg_red_check_runs": 0.7,
+    "avg_turns": 10.6,
+    "avg_tokens": 455908,
+    "cost_usd": 5.28,
+    "date": "2026-11-03"
+  }
+}

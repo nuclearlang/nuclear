@@ -1,0 +1,23 @@
+// Primes below 1 000 000 by trial division: how many, their sum and the largest.
+isPrime(n: int) boolean
+  if n < 2
+    return false
+  i = 2
+  while i * i <= n
+    if n % i == 0
+      return false
+    i += 1
+  true
+
+main() void
+  count = 0
+  sum = 0
+  largest = 0
+  n = 2
+  while n < 1000000
+    if isPrime(n)
+      count += 1
+      sum += n
+      largest = n
+    n += 1
+  print("count ${count} sum ${sum} largest ${largest}")

@@ -1,0 +1,134 @@
+{
+  "tasks": {
+    "location-detail": {
+      "id": "location-detail",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 99,
+      "turns": 8,
+      "cost_usd": 0.5299836,
+      "input_tokens": 348971,
+      "output_tokens": 4116,
+      "check_runs": 3,
+      "red_check_runs": 0
+    },
+    "episodes-cache": {
+      "id": "episodes-cache",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 184,
+      "turns": 14,
+      "cost_usd": 0.6106776000000002,
+      "input_tokens": 649968,
+      "output_tokens": 5897,
+      "check_runs": 7,
+      "red_check_runs": 1
+    },
+    "feedback-form": {
+      "id": "feedback-form",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 166,
+      "turns": 19,
+      "cost_usd": 0.7242990000000001,
+      "input_tokens": 1007195,
+      "output_tokens": 6206,
+      "check_runs": 7,
+      "red_check_runs": 1
+    },
+    "favorite-event": {
+      "id": "favorite-event",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 78,
+      "turns": 9,
+      "cost_usd": 0.4574002000000001,
+      "input_tokens": 398784,
+      "output_tokens": 3074,
+      "check_runs": 1,
+      "red_check_runs": 0
+    },
+    "random-tests": {
+      "id": "random-tests",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 96,
+      "turns": 8,
+      "cost_usd": 0.534354,
+      "input_tokens": 421489,
+      "output_tokens": 2944,
+      "check_runs": 4,
+      "red_check_runs": 4
+    },
+    "fan-guard": {
+      "id": "fan-guard",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 103,
+      "turns": 11,
+      "cost_usd": 0.5722818000000001,
+      "input_tokens": 551549,
+      "output_tokens": 4383,
+      "check_runs": 3,
+      "red_check_runs": 0
+    },
+    "status-filter": {
+      "id": "status-filter",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 129,
+      "turns": 11,
+      "cost_usd": 0.5901164,
+      "input_tokens": 506420,
+      "output_tokens": 6577,
+      "check_runs": 6,
+      "red_check_runs": 2
+    },
+    "ts-stats": {
+      "id": "ts-stats",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 31,
+      "turns": 5,
+      "cost_usd": 0.3572138,
+      "input_tokens": 216274,
+      "output_tokens": 1697,
+      "check_runs": 1,
+      "red_check_runs": 0
+    },
+    "ts-text": {
+      "id": "ts-text",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 27,
+      "turns": 7,
+      "cost_usd": 0.36291439999999997,
+      "input_tokens": 206062,
+      "output_tokens": 2441,
+      "check_runs": 2,
+      "red_check_runs": 0
+    },
+    "dart-csv": {
+      "id": "dart-csv",
+      "green": true,
+      "failed_checks": [],
+      "seconds": 26,
+      "turns": 6,
+      "cost_usd": 0.3628931999999999,
+      "input_tokens": 252256,
+      "output_tokens": 1877,
+      "check_runs": 2,
+      "red_check_runs": 0
+    }
+  },
+  "summary": {
+    "tasks": 10,
+    "green": 10,
+    "avg_red_check_runs": 0.8,
+    "avg_turns": 9.8,
+    "avg_tokens": 459818,
+    "cost_usd": 5.1,
+    "date": "2026-11-03",
+    "note": "ts-stats and ts-text re-verified after fixing the fixture paths (the agents had solved them)"
+  }
+}

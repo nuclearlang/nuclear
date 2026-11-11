@@ -1,0 +1,16 @@
+// Regular expressions with Nuclear's Regex and Match: r"..." keeps the backslashes, so a pattern is written as
+// in any regex tool.
+main() void
+  date = Regex(r"(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})")
+  print("test", date.test("on 2026-11-03"), date.test("no date"))
+  m = date.find("on 2026-11-03")!
+  print("groups", m[1], m.group("month"), m.start, m.end, m.text)
+  words = Regex(r"\w+").findAll("one two  three").map((w) => w.text)
+  print("all", words.join(","))
+  print("replace", "2026-11-03".replaceAll(date, (x) => "${x[3]}/${x[2]}/${x[1]}"))
+  print("callback", "a1b22c333".replaceAll(Regex(r"\d+"), (d) => "${d.text.length}"))
+  print("split", "a, b;c  d".split(Regex(r"[,;\s]+")).join("|"))
+  print("ignore case", Regex("nuclear", ignoreCase = true).test("NuclearLang"))
+  print("multiline", Regex(r"^\w$", multiline = true).findAll("a\nb\nc").length)
+  print("escape", Regex(r"\$\d+\.\d{2}").test("price: $10.50"))
+  print("none", Regex(r"\d").find("abc") == null)

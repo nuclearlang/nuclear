@@ -1,0 +1,11 @@
+User
+  (name: string, age: int)
+
+UserStore
+  users: User[] = []
+
+  find(name: string) Result<string, User>
+    found = users.filter(u => u.name == name)
+    if found.isEmpty
+      return Err("no user ${name}")
+    Ok(found.first)

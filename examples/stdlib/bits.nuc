@@ -1,0 +1,29 @@
+// Bitwise operators: flags, masks, shifts and a population count.
+popcount(value: int) int
+  n = value
+  count = 0
+  while n != 0
+    count += n & 1
+    n >>>= 1
+  count
+
+main() void
+  READ = 0b001
+  WRITE = 0b010
+  EXEC = 0b100
+  perms = READ | WRITE
+  print("has write", perms & WRITE != 0, "has exec", perms & EXEC != 0)
+  print("toggle", perms ^ EXEC, "clear", perms & ^WRITE)
+  print("shl", 1 << 10, "shr", 1024 >> 3, "ushr", 0xf0 >>> 4)
+  print("not", ^5, "xor swap", 6 ^ 3 ^ 3)
+  print("popcount", popcount(0xff), popcount(0b1011))
+  rgb = 0x336699
+  print("rgb", (rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff)
+  x = 5
+  x <<= 2
+  x |= 1
+  x &= 0b11101
+  x ^= 0b100
+  x >>= 1
+  print("compound", x)
+  print("power of two", 64 & (64 - 1) == 0, 96 & (96 - 1) == 0)

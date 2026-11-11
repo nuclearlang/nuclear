@@ -1,0 +1,5 @@
+# Same lints as a new Flutter project, so tools/analyze-flutter.sh sees what a real project sees.
+analyzer:
+  exclude:
+    - build/**
+include: package:flutter_lints/flutter.yaml

@@ -1,0 +1,61 @@
+# Python 3.12 reserved words and how they are produced from Nuclear.
+# Source: https://docs.python.org/3/reference/lexical_analysis.html#keywords
+# Inherited by the python and fastapi dialects. Format: spec/reserved-words.md.
+# `level` reserved: a Nuclear name with that word is renamed (options.reserved_escape: name_).
+
+[keywords]
+# --- reserved: can never be identifiers ---
+False    = { level = "reserved", via = "base", nuclear = "false" }
+None     = { level = "reserved", via = "base", nuclear = "null" }
+True     = { level = "reserved", via = "base", nuclear = "true" }
+and      = { level = "reserved", via = "base" }
+as       = { level = "reserved", via = "base", note = "use x as y, catch ... as is not used" }
+assert   = { level = "reserved", via = "none", note = "write a test (tests) or raise" }
+async    = { level = "reserved", via = "auto", note = "a function with ~call() becomes async def" }
+await    = { level = "reserved", via = "base", nuclear = "~call()" }
+break    = { level = "reserved", via = "base" }
+class    = { level = "reserved", via = "auto", note = "module with code → class" }
+continue = { level = "reserved", via = "base" }
+def      = { level = "reserved", via = "auto", note = "every function and method" }
+del      = { level = "reserved", via = "none", note = "dict.pop(key) or list.pop(i)" }
+elif     = { level = "reserved", via = "base", nuclear = "else if" }
+else     = { level = "reserved", via = "base" }
+except   = { level = "reserved", via = "base", nuclear = "catch" }
+finally  = { level = "reserved", via = "base" }
+for      = { level = "reserved", via = "base" }
+from     = { level = "reserved", via = "base", note = "use module{ name } → from module import name" }
+global   = { level = "reserved", via = "none", note = "module state goes in a class or the config" }
+if       = { level = "reserved", via = "base" }
+import   = { level = "reserved", via = "base", nuclear = "use module" }
+in       = { level = "reserved", via = "base" }
+is       = { level = "reserved", via = "base", note = "x is T → isinstance(x, T)" }
+lambda   = { level = "reserved", via = "base", nuclear = "x => x + 1" }
+nonlocal = { level = "reserved", via = "none", note = "a lambda with a block becomes a local def; it reads outer names" }
+not      = { level = "reserved", via = "base" }
+or       = { level = "reserved", via = "base" }
+pass     = { level = "reserved", via = "auto", note = "an empty class or constructor" }
+raise    = { level = "reserved", via = "base", nuclear = "throw ValueError(\"x\")" }
+return   = { level = "reserved", via = "auto", note = "implicit return; explicit return is also base" }
+try      = { level = "reserved", via = "base" }
+while    = { level = "reserved", via = "base" }
+with     = { level = "reserved", via = "none", note = "async with: the fastapi kinds open sessions and clients" }
+yield    = { level = "reserved", via = "base" }
+# --- soft keywords: identifiers except in their statement ---
+match    = { level = "contextual", via = "none", note = "Nuclear match is emitted as if / elif" }
+case     = { level = "contextual", via = "none" }
+type     = { level = "contextual", via = "none", note = "type aliases: a Nuclear name `type` stays valid" }
+_        = { level = "contextual", via = "base", nuclear = "_ -> (the default arm), [_, b] = xs" }
+# --- builtins: valid names, but they shadow a builtin (`list = ...` hides list) ---
+self     = { level = "contextual", via = "base", nuclear = "this (or nothing: members are implicit)" }
+print    = { level = "builtin", via = "builtin" }
+len      = { level = "builtin", via = "builtin" }
+
+# --- modules the library templates import (spec/library.md): a Nuclear name with that word is renamed ---
+math      = { level = "reserved", via = "library", note = "import math (Math.sqrt → math.sqrt)" }
+json      = { level = "reserved", via = "library", note = "import json (Json.encode)" }
+re        = { level = "reserved", via = "library", note = "import re (Regex)" }
+base64    = { level = "reserved", via = "library", note = "import base64 (Bytes)" }
+datetime  = { level = "reserved", via = "library", note = "import datetime (DateTime, Duration)" }
+functools = { level = "reserved", via = "library", note = "import functools (reduce)" }
+random    = { level = "reserved", via = "library", note = "import random (Math.random)" }
+asyncio   = { level = "reserved", via = "library", note = "import asyncio (delay, awaitAll)" }

@@ -1,0 +1,22 @@
+[package]
+name = "nuclear-lsp"
+description = "Language server (LSP) for NuclearLang: diagnostics, semantic highlighting, hover, completion, navigation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "nuclear-lsp"
+path = "src/main.rs"
+
+[dependencies]
+nuclear-diag.workspace = true
+nuclear-syntax.workspace = true
+nuclear-dialect.workspace = true
+nuclear-transpile.workspace = true
+serde_json.workspace = true
