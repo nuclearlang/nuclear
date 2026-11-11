@@ -99,7 +99,9 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   LSP's server.rs; the flutter brief check); every CI clones the whole working tree; `tools/release/build-runtimes.sh`
   builds the JavaScript runtimes before `install.sh` (CI, release.yml); tools/node's lock had the B1 rename in a
   tarball url (`fastapi-checkpoint`), nuclear-vscode's lock was out of sync. Left: every CI green, the website
-  deploy (GitHub Pages, SPA fallback) and a first release tag `v0.1.0` (the installers need it).
+  deploy (GitHub Pages, SPA fallback) and a first release tag `v0.1.0` (the installers need it). The CI fixes were
+  pushed; their runs were in progress when this was written. `tools/context/check.sh` now skips `.git` folders (every
+  repository of the tree has one).
 - **Workspace, fourth round (asked by the user 2026-11-06; NOT STARTED, record of the requirements so a fresh session
   picks it up; the state of the code is in ADR-0099 and `docs/context/editors/vscode.md`):**
   1. **The platform actions leave the file tree** — DONE in 0.34.0: a horizontal row above the editor (the editor

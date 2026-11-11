@@ -45,7 +45,7 @@ jobs:
           done
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26
       - name: The JavaScript runtimes (their dist/)
         run: tools/release/build-runtimes.sh
       - name: Rust target
@@ -72,7 +72,7 @@ jobs:
           for pair in $INSIDE; do git clone --depth 1 "https://github.com/$ORG/${pair#*:}" "${pair%%:*}"; done
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26
       - name: The extension (its bundled server is the Linux one; the installers link the platform's own nuclear-lsp)
         run: |
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
