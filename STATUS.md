@@ -91,10 +91,15 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   places the repository inside it; none for nuclear-jetbrains: it needs an installed IDE), the organization profile
   (`github-profile/` → repository `.github`), the e-mail out of the CLI credits, commits signed with the account's
   noreply address (repository-local git config; the global one keeps the gmail). **Stage 3 IN PROGRESS:** pushed
-  (public) dragonfly, dragonfly-mobile, dragonfly-web, nuclear-jetbrains, nuclear-zed (2nd commit pins the grammar
-  rev), .github, website. Left: nuclear, dragonfly-backend, nuclear-vscode — held for nuclearlang-4e's change in
-  progress (crates/nuclear-transpile project defs, backend `dependencies(...)`, a Loop tool in nuclear-vscode); then
-  every CI green (they fail until nuclear is public), the website deploy and a first release tag.
+  (public) all ten: nuclear, dragonfly, dragonfly-mobile, dragonfly-backend, dragonfly-web, nuclear-vscode,
+  nuclear-jetbrains, nuclear-zed (2nd commit pins the grammar rev), .github, website (nuclear, dragonfly-backend
+  and nuclear-vscode after nuclearlang-4e's change was green; its docs for `dependencies(...)` and `<project>/defs`
+  are still to come, by that session). First CI fixes: a lone clone of nuclear failed 74 tests that read the platform
+  dialects or examples — they now skip with a note (`without_platforms` in loader.rs, rules.rs, projects.rs, the
+  LSP's server.rs; the flutter brief check); every CI clones the whole working tree; `tools/release/build-runtimes.sh`
+  builds the JavaScript runtimes before `install.sh` (CI, release.yml); tools/node's lock had the B1 rename in a
+  tarball url (`fastapi-checkpoint`), nuclear-vscode's lock was out of sync. Left: every CI green, the website
+  deploy (GitHub Pages, SPA fallback) and a first release tag `v0.1.0` (the installers need it).
 - **Workspace, fourth round (asked by the user 2026-11-06; NOT STARTED, record of the requirements so a fresh session
   picks it up; the state of the code is in ADR-0099 and `docs/context/editors/vscode.md`):**
   1. **The platform actions leave the file tree** — DONE in 0.34.0: a horizontal row above the editor (the editor
@@ -387,6 +392,13 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   target), only if the user wants the same `.nuc` to build for TypeScript and Dart.
 
 ## Log (newest first)
+
+- 2026-11-10 · nuclearlang-60 · Public repositories, stages 1–3 (asked by the user: "sube los repos a github"; their
+  choices: finish the split first, a fresh history for dragonfly, docs/aprende private, the e-mail out of the
+  credits). See "Half done" → Public repositories for the layout, the publishing files, the ten pushed repositories
+  and the CI fixes. Checked before each push: the whole tree (root 21 test binaries + clippy -D warnings 0,
+  dragonfly 26, the platform checks, spec-checks, a Flutter app, the website, the three extensions, install.sh) and
+  a lone clone of nuclear (21 green); staged content scanned for keys, e-mails and home paths (none).
 
 - 2026-11-10 · nuclearlang-60 · Documentation pass (asked by the user: record the latest changes everywhere): the
   start hook lists no unrecorded file; README and the tutorial's install step now give the one-command installers

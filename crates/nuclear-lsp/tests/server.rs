@@ -15,6 +15,16 @@ fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// Most of these tests drive the server over the platforms' examples and dialects, which live in the platform
+/// repositories (plan 006): without them checked out inside this working tree, the test is skipped with a note.
+fn without_platforms(test: &str) -> bool {
+    let missing = ["dragonfly-mobile", "dragonfly-backend", "dragonfly-web"].into_iter().filter(|r| !repo().join(r).is_dir()).collect::<Vec<_>>();
+    if !missing.is_empty() {
+        eprintln!("skipped {test}: {missing:?} are not checked out in this working tree");
+    }
+    !missing.is_empty()
+}
+
 /// `path` in the source root of the working tree that holds it (the platform repositories hold their examples,
 /// plan 006: `<repo>/dragonfly-*/examples/...`).
 fn in_tree(path: &str) -> PathBuf {
@@ -145,6 +155,9 @@ fn token_of<'a>(tokens: &'a [(String, String, u32)], word: &str) -> &'a (String,
 
 #[test]
 fn flutter_example_has_no_errors() {
+    if without_platforms("flutter_example_has_no_errors") {
+        return;
+    }
     let s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     let errors: Vec<_> = s.diagnostics().into_iter().filter(|d| d["severity"] == 1).collect();
     assert!(errors.is_empty(), "{errors:?}");
@@ -152,6 +165,9 @@ fn flutter_example_has_no_errors() {
 
 #[test]
 fn semantic_tokens_follow_the_dialect() {
+    if without_platforms("semantic_tokens_follow_the_dialect") {
+        return;
+    }
     let mut s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     let tokens = s.tokens();
     let stateless = token_of(&tokens, "stateless");
@@ -172,6 +188,9 @@ fn semantic_tokens_follow_the_dialect() {
 
 #[test]
 fn hover_shows_library_and_declarations() {
+    if without_platforms("hover_shows_library_and_declarations") {
+        return;
+    }
     let mut s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     let h = s.at("textDocument/hover", "Text(", 0, 1);
     let md = h["contents"]["value"].as_str().unwrap();
@@ -192,6 +211,9 @@ fn hover_shows_library_and_declarations() {
 
 #[test]
 fn definition_references_and_rename() {
+    if without_platforms("definition_references_and_rename") {
+        return;
+    }
     let mut s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     // `load()` in initState → `load() void`
     let def = s.at("textDocument/definition", "load()", 0, 1);
@@ -219,6 +241,9 @@ fn definition_references_and_rename() {
 
 #[test]
 fn completion_members_named_args_and_snippets() {
+    if without_platforms("completion_members_named_args_and_snippets") {
+        return;
+    }
     let src = "Status\n  alive\n  dead\n\nstateless Badge(status: Status, label?: string)\n  build(context: BuildContext) Widget\n    Text(Status.)\n\nmain() void\n  runApp(Badge())\n\n";
     let mut s = Session::open(src, "flutter");
     let items = s.at("textDocument/completion", "Status.)", 0, 7);
@@ -272,6 +297,9 @@ fn foreign_syntax_has_a_quick_fix() {
 
 #[test]
 fn outline_and_folding() {
+    if without_platforms("outline_and_folding") {
+        return;
+    }
     let mut s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     let symbols = s.request("textDocument/documentSymbol", json!({ "textDocument": { "uri": URI } }));
     let names: Vec<&str> = symbols.as_array().unwrap().iter().map(|s| s["name"].as_str().unwrap()).collect();
@@ -287,6 +315,9 @@ fn outline_and_folding() {
 
 #[test]
 fn transpile_request_returns_dart() {
+    if without_platforms("transpile_request_returns_dart") {
+        return;
+    }
     let mut s = Session::open("main() void\n  print('hola')\n", "flutter");
     let out = s.request("nuclear/transpile", json!({ "textDocument": { "uri": URI } }));
     assert_eq!(out["extension"], "dart");
@@ -303,6 +334,9 @@ fn unknown_dialect_falls_back_to_base() {
 /// Simulates typing: every prefix of every example must be handled without panics.
 #[test]
 fn every_prefix_of_every_example_is_safe() {
+    if without_platforms("every_prefix_of_every_example_is_safe") {
+        return;
+    }
     let flutter = dialects::load("flutter", dialects::search_paths(&[], &[repo()]), None).unwrap();
     let mut files = Vec::new();
     for dir in
@@ -409,6 +443,9 @@ double(n: int) int = n * 2
 
 #[test]
 fn code_metrics_on_the_flutter_examples() {
+    if without_platforms("code_metrics_on_the_flutter_examples") {
+        return;
+    }
     let mut s = Session::open(&example("examples/examples-flutter-dialect/widgets_tour.nuc"), "flutter");
     let lenses = s.request("textDocument/codeLens", json!({ "textDocument": { "uri": URI } }));
     let lenses = lenses.as_array().unwrap();
@@ -432,12 +469,18 @@ fn item<'a>(items: &'a Value, label: &str) -> &'a Value {
 
 #[test]
 fn framework_libs_example_has_no_diagnostics() {
+    if without_platforms("framework_libs_example_has_no_diagnostics") {
+        return;
+    }
     let s = Session::open(&example("examples/examples-flutter-dialect/framework_libs.nuc"), "flutter");
     assert!(s.diagnostics().is_empty(), "{:?}", s.diagnostics());
 }
 
 #[test]
 fn hover_shows_the_type_definitions() {
+    if without_platforms("hover_shows_the_type_definitions") {
+        return;
+    }
     let src = "Api\n  dio: Dio = Dio()\n\nstateless Hello\n  build(context: BuildContext) Widget\n    Text('a', textAlign = TextAlign.center)\n";
     let mut s = Session::open(src, "flutter");
     let md = s.at("textDocument/hover", "Text(", 0, 1)["contents"]["value"].as_str().unwrap().to_string();
@@ -457,6 +500,9 @@ fn hover_shows_the_type_definitions() {
 
 #[test]
 fn completion_of_external_members() {
+    if without_platforms("completion_of_external_members") {
+        return;
+    }
     let src = "\
 Api
   dio: Dio = Dio()
@@ -492,6 +538,9 @@ Api
 
 #[test]
 fn completion_of_external_named_arguments() {
+    if without_platforms("completion_of_external_named_arguments") {
+        return;
+    }
     let src = "stateless Hello\n  build(context: BuildContext) Widget\n    Text('a', maxLines = 2, )\n";
     let mut s = Session::open(src, "flutter");
     let items = s.at("textDocument/completion", "2, )", 0, 3);
@@ -511,6 +560,9 @@ fn completion_of_external_named_arguments() {
 
 #[test]
 fn signature_help_of_external_calls() {
+    if without_platforms("signature_help_of_external_calls") {
+        return;
+    }
     let src =
         "stateless Hello\n  build(context: BuildContext) Widget\n    Scaffold(appBar = null, body = Text('a', ))\n";
     let mut s = Session::open(src, "flutter");
@@ -531,6 +583,9 @@ fn signature_help_of_external_calls() {
 
 #[test]
 fn inherited_members_of_external_bases() {
+    if without_platforms("inherited_members_of_external_bases") {
+        return;
+    }
     let src = "\
 CounterCubit: Cubit<int>
   ()
@@ -560,6 +615,9 @@ stateful Counter
 
 #[test]
 fn free_names_come_from_the_type_definitions() {
+    if without_platforms("free_names_come_from_the_type_definitions") {
+        return;
+    }
     let mut s = Session::open("main() void\n  runApp(Elevated)\n", "flutter");
     let items = s.at("textDocument/completion", "Elevated)", 0, 8);
     let button = item(&items, "ElevatedButton");
@@ -569,6 +627,9 @@ fn free_names_come_from_the_type_definitions() {
 
 #[test]
 fn deprecated_names_are_marked() {
+    if without_platforms("deprecated_names_are_marked") {
+        return;
+    }
     let mut s = Session::open("main() void\n  runApp(ButtonBar())\n", "flutter");
     let tokens = s.tokens();
     assert!(token_of(&tokens, "ButtonBar").2 & index::MOD_DEPRECATED != 0);
@@ -593,6 +654,9 @@ fn project_file(rel: &str, text: &str) -> Session {
 
 #[test]
 fn a_project_file_sees_the_other_files() {
+    if without_platforms("a_project_file_sees_the_other_files") {
+        return;
+    }
     let rel = "components/characters/domain/usecases/get_page_usecase.nuc";
     let text = example(&format!("{PROJECT}/{rel}"));
     let mut s = project_file(rel, &text);
@@ -615,6 +679,9 @@ fn a_project_file_sees_the_other_files() {
 
 #[test]
 fn unsaved_project_files_know_the_other_names() {
+    if without_platforms("unsaved_project_files_know_the_other_names") {
+        return;
+    }
     // a name of a generated file (`[project.files] names`) and a type of another file
     let src = "load() void\n  startDragonfly()\n  c: Character? = null\n";
     let s = project_file("components/characters/unsaved.nuc", src);
@@ -631,6 +698,9 @@ fn unsaved_project_files_know_the_other_names() {
 
 #[test]
 fn completion_of_declarations_of_other_files() {
+    if without_platforms("completion_of_declarations_of_other_files") {
+        return;
+    }
     let rel = "components/characters/unsaved.nuc";
     // members of a module of another file, by name and by the type of a value
     let mut s = project_file(rel, "x(repo: CharacterRepository) void\n  CharacterRepository.\n");
@@ -645,6 +715,9 @@ fn completion_of_declarations_of_other_files() {
 
 #[test]
 fn a_project_folder_gives_its_kind() {
+    if without_platforms("a_project_folder_gives_its_kind") {
+        return;
+    }
     let src = "Planet\n  name: string\n";
     let mut s = project_file("components/characters/domain/models/planet.nuc", src);
     let tokens = s.tokens();
@@ -665,6 +738,9 @@ fn an_invalid_manifest_is_reported() {
 
 #[test]
 fn decorators_and_result_of_the_dialect() {
+    if without_platforms("decorators_and_result_of_the_dialect") {
+        return;
+    }
     let mut s = Session::open("@\nload() Result<string, int>\n  Ok(1)\n", "flutter");
     let names = labels(&s.request(
         "textDocument/completion",
@@ -677,6 +753,9 @@ fn decorators_and_result_of_the_dialect() {
 
 #[test]
 fn arguments_of_a_decorator() {
+    if without_platforms("arguments_of_a_decorator") {
+        return;
+    }
     let src = "@screen(route = \"/\", loggedIn = { forward: X }, \n  )\nstateless A\n";
     let mut s = Session::open(src, "flutter");
     let complete = |s: &mut Session, line: u32, character: u32| {
@@ -701,6 +780,9 @@ fn arguments_of_a_decorator() {
 
 #[test]
 fn every_file_of_the_dragonfly_example_is_clean() {
+    if without_platforms("every_file_of_the_dragonfly_example_is_clean") {
+        return;
+    }
     let root = in_tree(PROJECT);
     let files = nuclear_transpile::project::sources(&root, &root.join("build/app"));
     assert!(files.len() > 20);
@@ -719,6 +801,9 @@ fn every_file_of_the_dragonfly_example_is_clean() {
 /// its own dialect, whatever `nuclear.dialect` says, and gets its project card.
 #[test]
 fn a_dragonfly_project_uses_the_dialect_of_its_config() {
+    if without_platforms("a_dragonfly_project_uses_the_dialect_of_its_config") {
+        return;
+    }
     let root = std::env::temp_dir().join(format!("nuclear-lsp-backend-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     copy_tree(&in_tree("examples/examples-backend/tasks_api"), &root);
@@ -753,6 +838,9 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
 
 #[test]
 fn project_packages_bring_their_definitions() {
+    if without_platforms("project_packages_bring_their_definitions") {
+        return;
+    }
     let root = std::env::temp_dir().join(format!("nuclear-lsp-project-defs-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let pkg = root.join("defs/dart/vault/1.0.0");
@@ -798,6 +886,9 @@ fn project_packages_bring_their_definitions() {
 
 #[test]
 fn hover_explains_kinds_words_and_doc_comments() {
+    if without_platforms("hover_explains_kinds_words_and_doc_comments") {
+        return;
+    }
     let src = "// Price with tax.\n * @param amount before tax\n * @return the price\n * @deprecated use total()\n * @example\n *   withTax(1.0)\nwithTax(amount: double) double\n  amount * 1.16\n\nstateless Badge(status: string)\n  build(context: BuildContext) Widget\n    Text(status)\n\nmain() void\n  print(withTax(amount = ))\n";
     let mut s = Session::open(src, "flutter");
     // a kind: its editor documentation, with an example
@@ -839,6 +930,9 @@ fn enter_on_an_empty_star_line_ends_the_comment() {
 
 #[test]
 fn zed_runs_the_code_lens_command_on_the_server() {
+    if without_platforms("zed_runs_the_code_lens_command_on_the_server") {
+        return;
+    }
     let out = Buf::default();
     let mut s = Session { server: Server::new(out.clone()), out, text: String::new(), uri: URI.into(), next_id: 1 };
     let init =

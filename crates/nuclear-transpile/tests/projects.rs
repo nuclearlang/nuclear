@@ -7,6 +7,17 @@ use std::path::{Path, PathBuf};
 
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
+
+/// Tests that build with a platform dialect (flutter, fastapi, nestjs, react) need the platform repositories checked
+/// out inside this working tree (plan 006): without them, the test is skipped with a note.
+fn without_platforms(test: &str) -> bool {
+    let l = nuclear_dialect::Loader::new(nuclear_dialect::dialect_dirs(std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))));
+    let missing: Vec<&str> = ["flutter", "fastapi", "nestjs", "react"].into_iter().filter(|d| l.load(d).0.is_none()).collect();
+    if !missing.is_empty() {
+        eprintln!("skipped {test}: the dialects {missing:?} are not in this working tree (their platform repositories are not checked out)");
+    }
+    !missing.is_empty()
+}
 fn loader(extra: Option<&Path>) -> Loader {
     let mut paths: Vec<PathBuf> = extra.into_iter().map(Path::to_path_buf).collect();
     paths.extend(nuclear_dialect::dialect_dirs(Path::new(ROOT)));
@@ -32,6 +43,9 @@ fn expected_of(project: &Path) -> PathBuf {
 /// A Dragonfly project has only .nuc files: without nuclear.toml it is a flutter project named like its folder.
 #[test]
 fn projects_match_expected_output() {
+    if without_platforms("projects_match_expected_output") {
+        return;
+    }
     let update = std::env::var("UPDATE_GOLDEN").is_ok();
     let mut failures = Vec::new();
     let dir = PathBuf::from(ROOT).join("examples/projects");
@@ -619,6 +633,9 @@ fn the_nuclear_manifest_is_read_and_not_transpiled() {
 /// reports N0306 with one it does not.
 #[test]
 fn kind_package_builds_with_its_dialects_only() {
+    if without_platforms("kind_package_builds_with_its_dialects_only") {
+        return;
+    }
     let root = std::env::temp_dir().join(format!("nuclear-kind-package-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let files = [
@@ -656,6 +673,9 @@ fn kind_package_builds_with_its_dialects_only() {
 /// the code sees its names (no N0106), imports them, and the generated manifest lists the package.
 #[test]
 fn a_backend_project_adds_a_package_with_its_own_definitions() {
+    if without_platforms("a_backend_project_adds_a_package_with_its_own_definitions") {
+        return;
+    }
     let root = std::env::temp_dir().join(format!("nuclear-project-defs-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let defs = "defs/python/probe_lib/1.0.0";

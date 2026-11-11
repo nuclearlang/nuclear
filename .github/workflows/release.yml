@@ -47,12 +47,7 @@ jobs:
         with:
           node-version: 22
       - name: The JavaScript runtimes (their dist/)
-        run: |
-          for p in */packages/*/package.json packages/*/package.json; do
-            [ -f "$p" ] || continue
-            d=$(dirname "$p")
-            if grep -q '"build"' "$p"; then (cd "$d" && npm ci --no-audit --no-fund && npm run build); fi
-          done
+        run: tools/release/build-runtimes.sh
       - name: Rust target
         run: rustup target add ${{ matrix.target }}
       - name: musl (static Linux binaries, any distribution)
