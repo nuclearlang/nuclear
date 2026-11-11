@@ -102,8 +102,9 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   deploy (GitHub Pages, SPA fallback) and a first release tag `v0.1.0` (the installers need it). The CI fixes were
   pushed. First CI round: nuclear, nuclear-vscode, dragonfly, nuclear-zed green; second round pushed (the Python
   tools' `fastapi-checkpoint` → `langgraph-checkpoint`, another B1 rename leftover; Node 26 in every workflow; the
-  runtimes built before the platform checks; mobile builds the backend example whose contract tasks_app reads) and
-  running. `tools/context/check.sh` now skips `.git` folders (every
+  runtimes built before the platform checks; mobile builds the backend example whose contract tasks_app reads):
+  **every CI green 2026-11-10** (nuclear, dragonfly, dragonfly-mobile, dragonfly-backend, dragonfly-web,
+  nuclear-vscode, nuclear-zed, website; nuclear-jetbrains has none). `tools/context/check.sh` now skips `.git` folders (every
   repository of the tree has one).
 - **Workspace, fourth round (asked by the user 2026-11-06; NOT STARTED, record of the requirements so a fresh session
   picks it up; the state of the code is in ADR-0099 and `docs/context/editors/vscode.md`):**
