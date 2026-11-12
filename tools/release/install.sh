@@ -88,9 +88,9 @@ if [ "$VERSION" = latest ]; then
     tag=""
     if command -v curl >/dev/null 2>&1; then
       tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)
-      tag=${tag##*/}
+      case $tag in */releases/tag/*) tag=${tag##*/} ;; *) tag="" ;; esac
     fi
-    [ -n "$tag" ] && [ "$tag" != latest ] || tag=$(read_url "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+    [ -n "$tag" ] || tag=$(read_url "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
     VERSION=$tag
   fi
   VERSION=${VERSION#v}
