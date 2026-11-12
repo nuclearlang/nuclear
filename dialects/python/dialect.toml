@@ -255,6 +255,8 @@ mul = "*"
 div = "/"
 rem = "%"
 coalesce = "{{left}} if {{left}} is not None else {{right}}"
+# a call or a map read on the left is evaluated once (and pyright narrows the value); the right side stays lazy
+coalesce_once = { template = "_coalesce({{left_arg}}, lambda: {{right_arg}})", helper = "def _coalesce[T](value: T | None, fallback: Callable[[], T]) -> T:\n    return value if value is not None else fallback()" }
 int_div = "//"
 pow = "**"
 bit_and = "&"

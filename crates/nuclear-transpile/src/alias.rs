@@ -43,10 +43,11 @@ pub(crate) fn expand(
         let Item::Decl(d) = item else { continue };
         let owner_via = via(d);
         if let Body::Members(members) = &mut d.body {
+            let names: Vec<String> = members.iter().filter_map(|m| if let Member::Method(md) = m { Some(md.name.name.clone()) } else { None }).collect();
             let mut injected: Vec<String> = Vec::new();
             for m in members {
                 if let Member::Method(md) = m
-                    && let Some(module) = rewrite(md, &modules, owner_via.as_deref(), &mut diags)
+                    && let Some(module) = rewrite(md, &modules, owner_via.as_deref(), &names, &mut diags)
                     && !injected.contains(&module)
                 {
                     injected.push(module);
@@ -55,7 +56,7 @@ pub(crate) fn expand(
             if owner_via.as_deref() == Some("constructor") && !injected.is_empty() {
                 let params = d.params.get_or_insert_with(|| Params { span: d.name.span, list: Vec::new() });
                 for module in injected {
-                    let name = field_name(&module);
+                    let name = field_name(&module, &names);
                     if params.list.iter().any(|p| p.name.name == name) {
                         continue;
                     }
@@ -72,7 +73,7 @@ pub(crate) fn expand(
                 }
             }
         } else {
-            rewrite(d, &modules, None, &mut diags);
+            rewrite(d, &modules, None, &[], &mut diags);
         }
     }
     diags
@@ -117,9 +118,11 @@ fn target(d: &Decl) -> Option<(Ident, Ident)> {
 }
 
 /// `GetTask` → `getTask`: the constructor field of an injected module.
-fn field_name(module: &str) -> String {
+fn field_name(module: &str, members: &[String]) -> String {
     let mut c = module.chars();
-    c.next().map(|f| f.to_lowercase().chain(c).collect()).unwrap_or_default()
+    let name: String = c.next().map(|f| f.to_lowercase().chain(c).collect()).unwrap_or_default();
+    // `listBooks() = ListBooks.exec`: the field cannot have the alias's name (one class member each)
+    if members.contains(&name) { format!("{name}Instance") } else { name }
 }
 
 /// Rewrites one alias; returns the module it delegates to (for `alias_via = "constructor"`).
@@ -127,6 +130,7 @@ fn rewrite(
     d: &mut Decl,
     modules: &HashMap<String, Module>,
     via: Option<&str>,
+    members: &[String],
     diags: &mut Vec<Diagnostic>,
 ) -> Option<String> {
     let (module, method) = target(d)?;
@@ -157,7 +161,7 @@ fn rewrite(
     let object = if is_static {
         expr(ExprKind::Name(module.name.clone()))
     } else if via == Some("constructor") {
-        expr(ExprKind::Name(field_name(&module.name)))
+        expr(ExprKind::Name(field_name(&module.name, members)))
     } else if let Some(f) = via {
         let ty = Type { span, kind: TypeKind::Named { name: module.name.clone(), args: Vec::new() } };
         let callee = expr(ExprKind::Name(f.to_string()));

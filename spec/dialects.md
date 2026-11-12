@@ -63,7 +63,42 @@ oneToMany = ["inverse!"]
 [decorators.fields]
 manyToOne = { optional = true, list = false, target = "entity", sibling = "{name}Id", inverse = "inverse" }
 manyToMany = { optional = true, list = true, target = "entity", inverse = "inverse", with = "joinTable" }
+
+# where each kind's file goes: {component}, {screen} (folders) and {file} (the name in snake_case)
+[layout]
+usecase = "components/{component}/domain/usecases/{file}.nuc"
+appcomponent = "components/{component}/{component}_appcomponent.nuc"
 ```
+
+`[layout]` gives every kind of the platform its place (a kind it does not declare is an error): `nuclear help layout
+--dialect <d>` prints it, and agents (the Nuclear Developer's planner) build a piece's path from it instead of
+guessing a folder.
+
+`[[generators.<what>]]` (ADR-0103) is what `dragonfly gen <what>` writes: `component` (a component's facade) and
+`resource` (models, repository, a use case per action, the facade's aliases, the platform's entry: a controller, or a
+screen with its state manager and state model, the tests). Each entry is one file at its kind's `[layout]` place:
+
+```toml
+[gen]
+http = 'Http(baseUrl = "{{baseUrl}}")'                                   # the connection a REST resource adds
+http_named = 'Http(connectionName = "{{name}}", baseUrl = "{{baseUrl}}")'  # when the app already has one
+
+[[generators.resource]]
+kind = "usecase"
+each = "each_action"          # one file per item of the list
+when = "rest"                 # a value that must be true (rest, db, screen, paged, actions.<action>)
+name = "{{UseCase}}"          # the declaration; the file is it in snake_case
+merge = false                 # true: a file that exists gets only the lines it lacks (a facade's aliases)
+template = """..."""
+```
+
+The values: `Name`/`name`, `Names`/`names` (the plural), `component`/`Component`, `fields` (`name`, `type`,
+`optional`, `id`, `last`, `sample`), `data` (the fields without the key), `models` (`Model`, `fields`, `main`), `rest`,
+`db`, `path`, `baseUrl`, `connection`, `paged`, `Page`, `items` (the page's field with the list), `idType`, `label` (what
+a list shows of an item), `listParam`/`listArg`, `sample`/`pageSample` (values for the tests), `actions.<action>`,
+`each_action` (`action`, `UseCase`, `alias`, `is.<action>`), `screen`/`Screen`. The Nuclear a generator writes is the
+same for every dialect of the platform (rule 11); a test builds a generated resource with every dialect
+(`a_generated_resource_compiles_with_every_dialect`, dragonfly).
 
 A field rule: `optional` (the field is `x?: T`), `list` (its type is a list, or not), `target` (its type, or its
 items, is a declaration with that decorator), `sibling` (a field of the same declaration must exist; `{name}` is the
@@ -110,7 +145,7 @@ file; a Dragonfly project names its dialect in `config.nuc` ([projects.md](proje
 | `[reexports]` | Modules that fully include others (`material.dart` includes `widgets.dart`) |
 | `[exports]` | Names a module exports besides the auto-imported ones (`Task` of fpdart): a declaration of the project with that name hides it from the import (`hide` clause of `import_default`); the type definitions give the rest |
 | `[functions]` | Function shortcuts |
-| `[toolchain]` | What the `dragonfly` CLI and the editors run in the generated project (`build/` or the dialect's output): shell commands `install`, `compile`, `run`, `test`, `serve` (the editor's own server), and `url` (where the app answers), `ready` (the line of `run` that means it is up), `installed` (the folder that means `install` ran); placeholders `{{packages}}` (the installation's runtimes), `{{url}}`, `{{port}}`, `{{host}}`; `migrate_make`, `migrate`, `migrate_down` for `dragonfly migrate` with `{{message}}` and `{{migrations}}` (the project's `migrations/` folder), quoted for the shell (ADR-0100 §5). `[toolchain.linux|macos|windows]` override a key on that system. `[[toolchain.launch]]` are the editor's debug configurations, `[toolchain.settings]` its settings and `extensions` the editor extensions it recommends, with `{{name}}`, `{{app}}`, `{{url}}`, `{{port}}` (ADR-0072, ADR-0101) |
+| `[toolchain]` | What the `dragonfly` CLI and the editors run in the generated project (`build/` or the dialect's output): shell commands `install`, `compile`, `run`, `test`, `serve` (the editor's own server), and `url` (where the app answers), `ready` (the line of `run` that means it is up), `installed` (the folder that means `install` ran), `install_local` (run by `install` once per dependency of `config.nuc` that is a folder, `{{path}}`: a package manager keeps the old copy of a folder whose version did not change); placeholders `{{packages}}` (the installation's runtimes), `{{url}}`, `{{port}}`, `{{host}}`; `migrate_make`, `migrate`, `migrate_down` for `dragonfly migrate` with `{{message}}` and `{{migrations}}` (the project's `migrations/` folder), quoted for the shell (ADR-0100 §5). `[toolchain.linux|macos|windows]` override a key on that system. `[[toolchain.launch]]` are the editor's debug configurations, `[toolchain.settings]` its settings and `extensions` the editor extensions it recommends, with `{{name}}`, `{{app}}`, `{{url}}`, `{{port}}` (ADR-0072, ADR-0101) |
 | `[call_site]` | `Module.method(...)` calls that receive where they are written (§5.3.1) |
 | `[names]` | `globals` (names of the environment), `not_constructors` (PascalCase names called without `new`) and `written` (names templates write, like `Right`/`Left`: imported if the generated code contains them) |
 | `[kinds.<word>]` | Header words that generate whole declarations: `stateless`, `controller`... |
@@ -342,7 +377,7 @@ class {{name}} extends StatelessWidget {
 | `named_params` | Calls to the constructor pass the arguments by name; in a dialect whose named arguments are one object (`named_args = "object"`) they stay that object instead of being reordered by position |
 | `syntax` | `[syntax]` templates that change only inside this kind: `[kinds.controller.syntax] ctor_param = "private readonly {{name}}: {{type}}"`; `construct` is how a call to a declaration of this kind is written (`"{{callee}}({{args}})"` when the kind is a function, not a class) |
 | `type_imports` | The declarations of this kind refer to each other only in types (two related entities): their imports of each other go in the dialect's `[syntax] type_imports` block (Python: `if TYPE_CHECKING:`), never a circular import |
-| `async_methods`, `methods`, `returns`, `file_header`, `alias_via`, `declares`, `provide`, `results`, `void_methods` | For frameworks: asynchronous methods, allowed methods (N0215), required return type (N0216), text once per file, where an alias's instance comes from, extra classes the template writes, how program declarations are read, `Result` without propagation and methods without a return ([projects.md](projects.md) §5) |
+| `async_methods`, `methods`, `returns`, `file_header`, `alias_via`, `declares`, `method_members`, `provide`, `results`, `void_methods` | For frameworks: asynchronous methods, allowed methods (N0215), required return type (N0216), text once per file, where an alias's instance comes from, extra classes the template writes, members the method template writes beside each method (`purge{{name\|pascal}}`, so N0116 knows them), how program declarations are read, `Result` without propagation and methods without a return ([projects.md](projects.md) §5) |
 
 A kind also serves to **generate repetitive code**. `data` (dart dialect) walks the fields and generates the
 constructor, `copyWith` and `toJson`:
@@ -427,6 +462,11 @@ usecase GetPageUseCase
 [words]        # modifiers and clauses: static, get, with...
 ````
 
+- **An entry is Nuclear only**: what the word means in the platform, never the framework underneath (no
+  "a SQLAlchemy table", "a Cubit", "pytest"), because the local agents read these texts and write only Nuclear.
+  What the dialect writes under a word goes to `[underneath.<section>]` of the same file (`entity = "a SQLAlchemy 2
+  mapped class"`): `nuclear help` and the editor show it after the entry as **Underneath (dialect):**, the
+  Smart Graph's agent collection leaves it out.
 - A dialect inherits its parent's entries and can replace them.
 - Every kind, decorator (`[decorators]`, `[decorators.args]`, `[decorators.provide]`), modifier and clause of
   the dialect has its entry; the test `every_dialect_word_has_editor_docs` checks it for the shipped dialects.
@@ -462,7 +502,7 @@ sqrt = "Math.sqrt({{arg0}})"
 |---|---|
 | bases | `string`, `list`, `map`, `set`, `int`, `double`, `number` (what `int` and `double` share), `boolean`, `bytes`, `datetime`, `duration`, `regex`, `match`, `error`, `any` (`toString`); objects `Math`, `Json`, `String`, `DateTime`, `Duration`, `Regex`, `Set`, `Bytes`, `Error` (`new` is the constructor) |
 | variables | `recv` (the value before the dot), `args`, `arg0`..., `has_args`, `n`, `named.<name>` (a named argument; a literal `true`/`false` is a flag), `call_args` (every argument as the target writes a call), `argN_is.<base>` (the static type of an argument: `split` takes a string or a Regex), `elem` (the element type), `type_args`, and for the first expression lambda among the arguments `fn.param`, `fn.params`, `fn.p0`, `fn.p1`, `fn.body` |
-| `helper` | A function the template calls, written once per file after the imports. `[functions]` and `[syntax]` entries take `helper` too (`print` in Python, `non_null`) |
+| `helper` | A function the template calls, written once per file after the imports. `[functions]`, `[syntax]` and `[operators]` entries take `helper` too (`print` in Python, `non_null`, `coalesce_once`) |
 | extensions | A member Nuclear does not define (`[library.string] tr` in the mobile platform) is the dialect's own: rendered the same way, its result type unknown |
 
 The emitter rewrites a member when the receiver's type is known (`nuclear-base.md`'s types, a literal, a library

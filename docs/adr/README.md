@@ -118,3 +118,5 @@ your question.
 | [0099](0099-editor-workspace.md) | The Nuclear workspace in the editor: projects as tabs, tools full screen, keyboard first | `editors` | Accepted |
 | [0100](0100-backend-data.md) | Backend data: one key decorator, TypeORM relations, pagination, transactions, migrations | `dragonfly` | Accepted |
 | [0101](0101-toolchain-data-and-installers.md) | Run, debug and install from data: `[toolchain]`, the card, the release installers | `dragonfly` | Accepted |
+| [0102](0102-ai-loop.md) | The AI loop: Nuclear Smart Graph (private RAG + MCP), Nuclear Developer (local 3B agents), the Loop tool | `nuclear` | Accepted |
+| [0103](0103-generators.md) | The CLI and the MCP generate the code (`dragonfly gen`); the agent writes only what is not standard; HTTP repositories in the backend | `dragonfly` | Accepted |

@@ -86,12 +86,14 @@ main() void
 - Comments `//`; the comment right above a declaration is its doc comment.
 - Names: `PascalCase` = types and constructors, `camelCase` = the rest. No visibility words: everything is exported.
 
-## The library is the target's
+## The library is Nuclear's
 
-Nuclear has no own standard library: a `.nuc` for TypeScript uses `Math.sqrt`, `xs.filter`, `s.includes`; for Dart
-`sqrt`, `xs.where`, `s.contains`. Every area (math, text, regex, collections, types, bytes, dates, JSON, async)
-has a working example per target in `examples/stdlib/`. Not sure an API exists: `nuclear defs show <Name>
---dialect <d>` (Dart targets) instead of guessing.
+Base types have one name per operation in every dialect (`spec/library.md`, `nuclear help library`): `xs.length`,
+`xs.add(x)`, `s.upper()`, `x in xs`; the dialect writes the target's code (`len(xs)`, `xs.push(x)`). A target's name
+on a base type (`push`, `len`, `toUpperCase`, `contains`) is an error with the Nuclear name as its fix. Library
+classes of a type definition (`dio`, `numpy`, `Text(...)`) are written as the library names them and tie the code to
+that dialect. Each area has an example in `examples/stdlib/`. Not sure an API exists: `nuclear defs show <Name>
+--dialect <d>` instead of guessing.
 
 ## The compiler corrects habits
 
@@ -99,4 +101,4 @@ Writing TypeScript, Dart or Python by reflex (`{ }` blocks, `await x`, `const x 
 `int f(int x)`, `def`, `elif`, `None`, `#`, `i++`, `import`) is error `N0022` with the Nuclear form and an exact
 `fix`: apply it. With type definitions, an invented class is `N0220` ("did you mean") and an invented named argument
 is `N0219` (it lists the real ones). A dialect word: `nuclear help <word> --dialect <d>`; all of them:
-`nuclear help words --dialect <d>`.
+`nuclear help words --dialect <d>`; where each kind's file goes: `nuclear help layout --dialect <d>`.

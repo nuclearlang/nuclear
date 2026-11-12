@@ -26,3 +26,17 @@ fn a_removed_source_takes_its_output_with_it() {
     assert!(!root.join("build/b.ts").exists(), "the output of a removed .nuc stays");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// `nuclear fix` applies the compiler's exact fixes (an async call used without `~`) and reports what is left.
+#[test]
+fn fix_applies_the_exact_fixes() {
+    let dir = std::env::temp_dir().join(format!("nuclear-fix-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("books.nuc");
+    std::fs::write(&file, "Books()\n  all() string[]\n    ~fetchAll()\n\n  fetchAll() string[]\n    []\n\n  count() int\n    books = Books()\n    books.all().length\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_nuclear")).args(["fix", file.to_str().unwrap(), "--dialect", "typescript"]).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(std::fs::read_to_string(&file).unwrap().contains("(~books.all()).length"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

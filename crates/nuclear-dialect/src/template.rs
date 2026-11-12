@@ -269,6 +269,16 @@ impl Template {
         out
     }
 
+    /// The text between the tags at the top level (`" if "`, `" else "` of `{{then}} if {{cond}} else {{else}}`), trimmed
+    /// and without the empty ones: the template's shape, to compare it with another template's.
+    pub fn literals(&self) -> Vec<String> {
+        self.nodes
+            .iter()
+            .filter_map(|n| if let Node::Text(t) = n { Some(t.trim().to_string()) } else { None })
+            .filter(|t| !t.is_empty())
+            .collect()
+    }
+
     /// Plain text with no tags (used for templates that are constant strings).
     pub fn is_constant(&self) -> bool {
         self.nodes.iter().all(|n| matches!(n, Node::Text(_)))

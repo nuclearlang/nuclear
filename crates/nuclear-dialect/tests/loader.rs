@@ -559,3 +559,20 @@ fn kind_packages_extend_a_platform_dialect() {
     let (t, _) = loader.load("typescript");
     assert!(t.unwrap().packages.is_empty());
 }
+
+/// `[layout]` of every platform says where the file of each of its kinds goes (agents and generators follow it).
+#[test]
+fn every_platform_kind_has_a_place_in_the_layout() {
+    if without_platforms("every_platform_kind_has_a_place_in_the_layout") {
+        return;
+    }
+    let l = Loader::new(repo_dialects());
+    for dialect in ["flutter", "fastapi", "nestjs", "react"] {
+        let d = l.load(dialect).0.unwrap();
+        let language = d.chain.last().cloned().unwrap_or_default();
+        let missing: Vec<&String> =
+            d.kinds.iter().filter(|(k, e)| e.origin.dialect != language && !d.layout.contains_key(*k)).map(|(k, _)| k).collect();
+        assert!(missing.is_empty(), "{dialect}: no layout for {missing:?}");
+        assert!(d.layout.values().all(|p| p.ends_with(".nuc")), "{dialect}: {:?}", d.layout);
+    }
+}

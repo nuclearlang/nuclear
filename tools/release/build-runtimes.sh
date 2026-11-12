@@ -12,3 +12,8 @@ for p in "$REPO"/packages/*/package.json "$REPO"/dragonfly/packages/*/package.js
   else (cd "$d" && npm install --no-audit --no-fund >/dev/null); fi
   (cd "$d" && npm run --silent build)
 done
+# nuclear-loop (ADR-0102): the Loop engine of the VS Code extension bundled for node; stage.sh copies it into bin/
+if [ -f "$REPO/nuclear-vscode/package.json" ]; then
+  echo "building nuclear-loop"
+  (cd "$REPO/nuclear-vscode" && npm ci --no-audit --no-fund >/dev/null && npm run --silent loop >/dev/null)
+fi

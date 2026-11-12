@@ -33,7 +33,7 @@ Ranges: `N00xx` lexing and syntax · `N01xx` resolver (semantics) · `N02xx` dia
 | N0016 | Function declared inside a body | `helper(x: int) int` + block inside a function | `helper = (x: int) int` + block |
 | N0017 | Statement in the body of a module | `localAttr = "x"` inside `User` | field `localAttr: string = "x"` or assign it in the constructor |
 | N0018 | Module declared inside another module | `Inner` inside `User` | declare it at the top level |
-| N0019 | Invalid assignment target | `f() = 1` | a name, `$field`, `a.b` or `a[i]` |
+| N0019 | Invalid assignment target | `f() = 1`; `pieces = ~pieces(raw)` inside a module with a method `pieces` (a method is not a variable) | a name, `$field`, `a.b` or `a[i]`; another name for the variable |
 | N0020 | One-line function returning void | `log(m: string) void = print(m)` | an indented block |
 | N0021 | Comment line without ` * ` | `// title` + a more indented `  text` | ` * text`, with the `*` below the second `/` (the fix writes it) |
 | N0022 | Habit of another language (TypeScript, Dart, Python, Java, Go); the other errors of that line are not shown | `f() int {`, `await g()`, `const x = 1`, `new User()`, `class A extends B`, `int f(int x)`, `def f(self):`, `elif`, `None`, `# note`, `i++`, `import { a } from "x"` | the NuclearLang form; the fix writes it when it is exact (`f() int`, `~g()`, `x = 1`, `User()`, `A: B`, `f(x: int) int`, `else if`, `null`, `// note`, `i += 1`, `use x{ a }`) |
@@ -42,7 +42,7 @@ Ranges: `N00xx` lexing and syntax · `N01xx` resolver (semantics) · `N02xx` dia
 
 | Code | Error | Example |
 |---|---|---|
-| N0102 | Duplicate declaration | two `User` in the same file |
+| N0102 | Duplicate declaration | two `User` in the same file; a member declared twice in one module (`load()` twice); a call to a method hidden by a local of the same name (`prompt(...)` inside `write(prompt: string)` of a module with a method `prompt`) |
 | N0103 | `if`/`match` with multi-line branches inside an expression | `f(if a` + a two-line block `)` |
 | N0104 | Invalid enum item | an enum that mixes `user` with `name: string` |
 | N0105 | Name used outside the block that created it | `text` created inside an `if` and read after it |
@@ -54,8 +54,8 @@ Ranges: `N00xx` lexing and syntax · `N01xx` resolver (semantics) · `N02xx` dia
 | N0111 | Invalid use of a `Result` | a branch `Ok(1) ->` in a `match`; an `.error()` callback that returns `Ok(...)` only in some branches; `match load(id)` with an async `load` (missing `~`) |
 | N0112 | Alias of a method that cannot be reached | `find() = Repo.find` with `Repo(url: string)`: the alias creates a new `Repo()` and `url` has no default (fix: give it a default, or write `find` as a method) |
 | N0113 | Top-level statements in a file with `main` (targets that run them in `main`, like Dart) | `print("hi")` at the top level and `main() void` in the same file (fix: move the statement into `main`; a top-level variable `limit = 10` is allowed) |
-| N0114 | Not a member of Nuclear's standard library ([library.md](library.md)): a target's name on a base type, a function of a target (`len`, `str`, `parseInt`), a static of a target (`Math.floor`, `JSON.stringify`), a property called as a method or a method used as a property | `xs.push(x)` (fix: `add(x)`), `text.toUpperCase()` (fix: `upper()`), `len(xs)` (fix: `xs.length`), `xs.length()` (fix: `length` is a property) |
-| N0116 | A member that a declaration of the project does not have: the value's type is a model, class or kind whose members are all known (no base outside the project, nothing the kind's template adds) | `saved.done` when `Task` has `completed` (a contract the backend changed); the message names the closest member and all of them | rebuild (a contract) or fix the name |
+| N0114 | Not a member of Nuclear's standard library ([library.md](library.md)): a target's name on a base type, a function of a target (`len`, `str`, `parseInt`), a static of a target (`Math.floor`, `JSON.stringify`), a property called as a method or a method used as a property | `xs.push(x)` (fix: `add(x)`), `text.toUpperCase()` (fix: `upper()`), `len(xs)` (fix: `xs.length`), `xs.length()` (fix: `length` is a property); a kept `Result` read as its value (`found.length`, `found[0]` in a test: `found.value.length`) |
+| N0116 | A member that a declaration of the project does not have: the value's type is a model, class or kind whose members are all known (its own, its project bases' and those of the runtime classes it or its kind inherits when the type definitions list them; the kind's `method_members`), and the message names them as the `.nuc` writes them | `saved.done` when `Task` has `completed` (a contract the backend changed); `~loans.get(id)` on a repository (the runtime's is `find`); the message names the closest member and all of them | rebuild (a contract) or fix the name |
 | N0115 | The receiver's type is not known and the member is written differently for each base type in this dialect | `items.length` where `items` comes from a value without a type (fix: declare it, `items: string[] = ...`); only in the dialects where the bases differ (TypeScript's `length` against `size`) |
 
 ## Dialects
@@ -78,10 +78,12 @@ Ranges: `N00xx` lexing and syntax · `N01xx` resolver (semantics) · `N02xx` dia
 | N0214 | Two versions of the same definitions package | `dart` asks for `dart@3.13.5` and a child dialect for `dart@3.12.0` |
 | N0215 | Method not allowed in the kind | a second method in a `usecase` (only `exec` is allowed) |
 | N0216 | The kind requires another return type | `exec() Character` in a `usecase` (it must return `Result<E, T>`) |
+| N0221 | A method of the kind needs a body | `booksOf(author: string) Result<Error, Book[]>` alone in an `appcomponent` (it would be generated empty) | an alias `booksOf() = BooksOfAuthor.exec`, or a body |
+| N0222 | An asynchronous call used without `~` | `expect(booksOfAuthor.exec("Ada").length > 0)` (the length of a promise); `found = books.all()` then `found.length` (the variable holds the call) | `(~booksOfAuthor.exec("Ada")).length`; `found = ~books.all()` |
 | N0217 | Unknown or missing decorator argument (`[decorators.args]`) | `@screen(loggedIn = { })` (missing `forward`), `@screen(rute = "/")` |
 | N0218 | The kind does not write the declaration's generics (`<T>`) or interfaces (`> I`): they would be lost | `Page<T>` with a kind whose template does not use `generics`; `@stateModel(S) statemanager M > Comparable` |
 | N0219 | Named argument the constructor does not have (from the type definitions; files of a project) | `Text("a", colour = c)` | the closest parameter (`style`); the message lists all of them |
-| N0220 | PascalCase call that nothing defines (files of a project, dialects with type definitions) | `Collumn(children = [])` | the closest known name (`Column`); `nuclear defs search` |
+| N0220 | PascalCase call that nothing defines (files of a project, dialects with type definitions); also a call's type argument (`inject<Missing>()`), not a generic parameter | `Collumn(children = [])`; `inject<BooksAppComponent>()` with no such class | the closest known name (`Column`); `nuclear defs search` |
 
 ## Projects and architecture
 

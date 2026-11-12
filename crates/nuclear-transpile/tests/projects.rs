@@ -466,6 +466,25 @@ fn a_name_declared_in_two_files_is_an_error() {
     assert_eq!(codes, [("b.nuc".to_string(), "N0303")]);
 }
 
+/// A type argument names a class too: `inject<Missing>()` is N0220 (it compiled and failed at run time); a declared
+/// class or a generic parameter is not reported.
+#[test]
+fn a_type_argument_must_name_a_class() {
+    let src = "Finder\n  (n: int)\n\nwire() void\n  f = inject<Finder>()\n  m = inject<Missing>()\n\npick<T>() T\n  inject<T>()\n";
+    let (root, dialects) = tmp_project("typearg", ARCH, &[("a.nuc", src)]);
+    let codes = build_codes(&root, &dialects);
+    assert_eq!(codes.iter().filter(|(_, c)| *c == "N0220").count(), 1, "{codes:?}");
+}
+
+/// A folder that is a repository of its own (a knowledge base kept inside the project, with copies of other projects'
+/// files) is not part of the project: its `.nuc` files are not compiled.
+#[test]
+fn a_nested_repository_is_not_part_of_the_project() {
+    let (root, dialects) = tmp_project("nested", "", &[("a.nuc", "User\n  (name: string)\n"), ("data/copy/b.nuc", "User\n  (age: int)\n")]);
+    std::fs::create_dir_all(root.join("data/.git")).unwrap();
+    assert_eq!(build_codes(&root, &dialects), []);
+}
+
 /// spec/flutter.md shows the real output of the Dragonfly example: each of its ```dart blocks with a
 /// project caption is part of a file of the example's expected folder.
 #[test]
@@ -706,4 +725,67 @@ fn a_backend_project_adds_a_package_with_its_own_definitions() {
     assert!(pyproject.contains("\"probe_lib>=1.0\","), "{pyproject}");
     assert!(pyproject.contains("\"local_lib @ file:///") && pyproject.contains("local_lib\","), "{pyproject}");
     let _ = std::fs::remove_dir_all(&root);
+}
+
+/// N0116 also closes a kind that inherits runtime classes (a repository inherits `Repository` and `Query` from the
+/// type definitions), and its message names members as the `.nuc` writes them in every dialect (Python renames
+/// `bookId` to `book_id` underneath).
+#[test]
+fn a_member_the_runtime_lacks_is_an_error_named_as_the_source_writes_it() {
+    if without_platforms("a_member_the_runtime_lacks_is_an_error_named_as_the_source_writes_it") {
+        return;
+    }
+    for dialect in ["fastapi", "nestjs"] {
+        let root = std::env::temp_dir().join(format!("nuclear-runtime-member-{dialect}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let config = format!("dragonfly(platform = \"backend\", dialect = \"{dialect}\")\napp(name = \"loans\")\nplugins(sqlite = true)\n");
+        let files = [
+            ("config.nuc", config.as_str()),
+            ("config/project_config.nuc", "appConfig ProjectConfig\n  connections: Connection[] = [SQLite(file = \"loans.sqlite\")]\n"),
+            ("components/loans/data/entities/loan.nuc", "@entity(\"loans\")\nLoan()\n  @primary(generated = true)\n  id: int\n  bookId: string\n"),
+            ("components/loans/data/repositories/loan_repository.nuc", "repository LoanRepository\n"),
+            ("components/loans/domain/usecases/get_loan.nuc", "usecase GetLoan(loans: LoanRepository)\n  exec(id: int) Result<Error, Loan>\n    ~loans.get(id)\n"),
+            ("components/loans/domain/models/loan_view.nuc", "LoanView()\n  bookId: string\n"),
+            ("components/loans/domain/usecases/book_of.nuc", "usecase BookOf()\n  exec(view: LoanView) Result<Error, string>\n    Ok(view.bookIdd)\n"),
+        ];
+        for (rel, text) in files {
+            let path = root.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let manifest = Manifest::read(&root).unwrap();
+        let d = loader(None).load(dialect).0.unwrap();
+        let out = project::build(&root, &manifest, &d);
+        let errors: Vec<String> = out
+            .files
+            .iter()
+            .flat_map(|f| f.diagnostics.iter().filter(|x| x.is_error()).map(|x| format!("{}: {}", x.code.id, x.message)))
+            .collect();
+        assert!(
+            errors.iter().any(|e| e.starts_with("N0116: 'LoanRepository' has no member 'get'") && e.contains("findAll")),
+            "{dialect}: {errors:?}"
+        );
+        assert!(
+            errors.iter().any(|e| e.starts_with("N0116: 'LoanView' has no member 'bookIdd'; did you mean 'bookId'?")),
+            "{dialect}: {errors:?}"
+        );
+        assert_eq!(errors.len(), 2, "{dialect}: {errors:?}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+/// The project map an agent reads first: every declaration by component, with its kind, its doc comment and its
+/// members in Nuclear (aliases as aliases, decorators as written).
+#[test]
+fn the_project_map_describes_each_component() {
+    let Some(root) = tree("examples/examples-backend/tasks_api") else { return };
+    let manifest = Manifest::read(&root).unwrap();
+    let d = loader(None).load(&manifest.dialect).0.unwrap();
+    let map = nuclear_transpile::map::map(&root, &manifest, &d);
+    assert!(map.starts_with("# Project map: tasks_api (backend)"), "{map}");
+    assert!(map.contains("## Component `tasks`"), "{map}");
+    assert!(map.contains("appcomponent `TasksAppComponent` — What the rest of the app"), "{map}");
+    assert!(map.contains("`list() = ListTasks.exec`"), "{map}");
+    assert!(map.contains("`@minLength(1) message: string`"), "{map}");
+    assert!(!map.contains("def ") && !map.contains("async "), "only Nuclear: {map}");
 }

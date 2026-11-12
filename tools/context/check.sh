@@ -13,7 +13,7 @@ marker="${XDG_RUNTIME_DIR:-/tmp}/nuclear-context-${sid:-none}"
 changed() {
   cd "$root" && find crates dialects languages spec tools install.sh dragonfly-mobile dragonfly-backend dragonfly-web \
     dragonfly/dragonfly/src nuclear-vscode/src nuclear-jetbrains/src nuclear-zed/src \
-    \( -name target -o -name node_modules -o -name build -o -name .dart_tool -o -name .venv -o -name dist-test -o -name .git \) -prune \
+    \( -name target -o -name node_modules -o -name build -o -name .dart_tool -o -name .venv -o -name dist-test -o -name dist -o -name .pytest_cache -o -name __pycache__ -o -name .git \) -prune \
     -o -type f -newer "$1" -print 2>/dev/null
 }
 

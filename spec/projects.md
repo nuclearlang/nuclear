@@ -76,6 +76,11 @@ source (ADR-0095): the language dialect, the platform's contract or a kind packa
 status bar; the language server itself reads the manifest (`config.nuc` or `nuclear.toml`) and checks each project
 with its own dialect, whatever the editor's default dialect is.
 
+Next to the card, the same commands write `.nuclear/map.md`, the **project map**: every declaration of the project
+grouped by component, with its kind, its description (its doc comment) and its members, in Nuclear (aliases as
+`list() = ListTasks.exec`, decorators as written). It is what an agent reads before it writes — the business of each
+component without opening every file — and it is the same for every dialect of the platform.
+
 ### 1.2 The contract: `.nuclear/contract.json` and `contracts(...)`
 
 The same call also writes `.nuclear/contract.json` (ADR-0098): what the project exposes or calls, in Nuclear's
@@ -180,13 +185,20 @@ A `packages` section only lists third-party packages the framework does not use:
 (its `defs`, not the ones the project added) or of `reserved` is `N0303` on its line
 (`project::check_config`, `project::reserved_package`).
 
-### 3.2 Type definitions of the project: `build/defs.lock`
+A backend dialect has the `dependencies` section too (`dependencies(nuclear_graph = ">=0.1")`): each package goes to
+the generated manifest (`pyproject.toml`, `package.json`) as the template variable `dependencies` (`name`,
+`version`, `path`); a version that starts with `.` or `/` is a folder on disk, resolved from the project root
+(`nuclear_graph @ file:///...`, `"file:/..."`).
+
+### 3.2 Type definitions of the project: `build/defs.lock` and `defs/`
 
 The packages a project adds (besides the dialect's `defs`) are listed in `build/defs.lock`, one per line
-(`hive@2.2.3`). The framework's CLI writes it: it resolves the versions and generates the missing
-definitions into the cache (`~/.cache/nuclearlang/defs`, [definitions.md](definitions.md) §1). Every tool
-that transpiles or checks the project (CLI, editors) adds them to the dialect with
-`project::defs_lock(root)` + `Loader::add_defs`.
+(`hive@2.2.3`), or kept in the project itself under `defs/<language>/<name>/<version>/` (a package of the project's
+own code, or one no cache has). The framework's CLI writes the lock: it resolves the versions and generates the
+missing definitions into the cache (`~/.cache/nuclearlang/defs`, [definitions.md](definitions.md) §1). Every tool
+that transpiles or checks the project (`nuclear build|check`, `dragonfly`, the LSP) adds both to the dialect with
+`project::with_project_defs(root, dialect)` (`project_defs` lists them); a package that cannot be loaded is a
+warning.
 
 A kind by folder applies only to PascalCase declarations that are neither enums nor functions and carry no
 other header word.

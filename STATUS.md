@@ -55,9 +55,70 @@ below while it is open.
 
 Also listed in the analysis, after these: offline write sync and conflicts for the local database, push
 notifications, OAuth/Firebase Auth, analytics and crash reporting, deep links, CI templates and store publishing
-from the CLI, an MCP server, a 30-minute validated tutorial and comparison tables.
+from the CLI, an MCP server (DONE 2026-11-10: `nuclear-graph mcp`, ADR-0102), a 30-minute validated tutorial and
+comparison tables.
 
 ## Half done
+
+- **Documentation and the RAG always up to date (decided by the user 2026-11-11, NOT STARTED).** Why: an ADR-0103 pass
+  claimed "documented" and missed CHANGELOGs, READMEs, the skill and three platform CONTEXTs; the user had to ask.
+  Scope of "documentation" (the user's words): context docs (`docs/context/`), `/docs`, every `.md` that describes the
+  change, everything for the agents (skill `agents/skills/nuclear/SKILL.md`, `spec/brief/`), the website's docs
+  (`~/Documents/projects/nuc/react/nuclearlang_website`, `tools/content.mjs`) and the RAG. Plan (approved, three layers):
+  1. **Watcher in `nuclear-graph serve`:** polls the source roots (the tree + the website); a changed `.md`,
+     `docs.toml`, example `.nuc` or prompt is copied byte for byte into `nuclear-developer/data` (manifest updated) and
+     re-ingested by hash after a few seconds of quiet. Test: change a file, find it in a search. It is new Python:
+     add it to the nuclear-graph → Nuclear migration item below.
+  2. **Stop hook:** `tools/context/check.sh stop` fails while `nuclear-graph knowledge check` reports differences
+     (for when the server is not running).
+  3. **`tools/context/docs-check.sh`, called by the same hook:** for each repository with changed code, its
+     `docs/context/`, its `/docs` or `.md`, its CHANGELOG, the skill/briefs when a command, MCP tool or Loop stage
+     changed, the website content rebuilt when a page it publishes changed, the RAG clean. The list written in
+     `docs/context/workflow.md`. Test: the hook refuses with a missing doc.
+  Also left from 2026-11-11: the knowledge base was rebuilt (`knowledge check` clean) but not re-ingested into the
+  running graph (`nuclear-graph ingest ../nuclear-developer/data`), and the skill not copied to
+  `~/.claude/skills/nuclear`, `~/.agents/skills/nuclear`, `~/.codex/skills/nuclear` (or `./install.sh`).
+
+- **Generators: the CLI and the MCP write the code, the agent only what is not standard (ADR-0103, asked by the user
+  2026-11-11, for the three platforms, CLI and MCP complete).** The user had understood that this existed: only
+  `dragonfly make` existed (one nearly empty file per kind). Steps, in order (each: tests, docs, this line updated):
+  1. Backend HTTP repositories (fastapi + nestjs runtimes and templates, platform.toml, spec/backend.md, the example).
+  2. `dragonfly gen component|resource|screen|inspect` (CLI, Rust) over `[generators]` templates in each platform.toml;
+     fields from `--fields`, `--from-json`, `--from-spec`; a test that builds a generated resource with every dialect.
+  3. MCP tools: `project_inspect`, `generate_*`, `api_inspect`, `web_search` (the graph's `web.py`).
+  4. The Loop's *Generate* stage (the plan names resources; the agents write only what is left).
+  5. Proved on `~/Documents/projects/nuc/backend/nuclear_rick_and_morty` (its characters spec); docs everywhere.
+  State (2026-11-11): steps 1–4 DONE, step 5 proved on a copy. (1) Backend HTTP repositories in fastapi and nestjs.
+  (2) `dragonfly gen inspect|component|resource` for every platform (`dragonfly/src/generate.rs`, `gen_command` in
+  main.rs, `[[generators.*]]` + `[gen]` in the three platform.toml): fields from `--fields`, `--from-json <file|url>`,
+  `--from-spec` (its example answer, its table, its `GET` url); `@key` for snake_case JSON (new in the backend platform:
+  pydantic aliases, class-transformer `@Expose`); refuses undeclared types, a name declared elsewhere and a source the
+  platform lacks before writing; test `a_generated_resource_compiles_with_every_dialect`; checked live on fresh projects
+  with fastapi, nestjs, flutter and react (Rick and Morty characters and episodes: answers equal to the API's,
+  pyright/tsc 0, `flutter analyze` clean, the generated tests pass, `vite build`). (3) MCP: `project_inspect`,
+  `generate_component|resource|screen`, `api_inspect`, `web_search`, `web_read`, instructions "generate first". (4) The
+  Loop's *Generate* stage (before Plan; resources from `## Resources` or `GET <url>` lines; files in the write
+  ledger; the planner plans only the rest). (5) `nuclear-loop run` of the user's spec on a copy of
+  nuclear_rick_and_morty: Generate wrote 11 files that compile, the planner left 0 pieces, the run failed at the local
+  tester's own test (it read `characters.value` and asserted a 409 against the live API). Left: `@mock` for the backend
+  platform so `gen` writes a REST resource's tests (then the tester only adds what is specific); the nestjs HTTP
+  repository decoding by the model (today the raw JSON: a renamed field reads `undefined` in a use case); `web_search`
+  needs SearXNG or a Brave key to be useful (Wikipedia answers noise); the user's project still has the failed run's
+  leftovers (`components/character/data/entities/character.nuc`, `test/implements_list_character_feature_test.nuc`):
+  `gen` refuses `Character` until they are removed — not touched (the user's project).
+
+- **The AI loop written in Nuclear/Dragonfly (the user, 2026-11-11: "todo se hacía con nuclear-lang y dragonfly, excepto
+  las extensiones"):** today only `nuclear-developer` is Nuclear. Not Nuclear: `nuclear-graph` (≈1 500 lines of Python:
+  server, store, encryption, keyring, access tokens, ingest, MCP server, CLI, `web.py`) and its tests, the Developer's
+  `eval/run.py` (342 lines), `nuclear-loop` (TypeScript, inside nuclear-vscode). What the backend platform lacks to
+  write them: an MCP server kind, a command-line kind, guards/`@acl` on routes, library files / hashing / crypto /
+  processes, an outgoing HTTP connection. **Decided by the user 2026-11-11: only nuclear-graph** — the missing backend
+  platform pieces first (an ADR), then nuclear-graph (server, store, access, ingest, MCP, CLI, the web tools) rewritten
+  in Nuclear; `eval/run.py` and `nuclear-loop` stay as they are for now. NOT STARTED.
+- **Internet tools for the local agents (asked by the user 2026-11-11):** `nuclear-graph/src/nuclear_graph/web.py`
+  works (search: own SearXNG `NUCLEAR_SEARXNG_URL`, Brave with `nuclear-graph web-key brave`, else Wikipedia — DuckDuckGo
+  refuses automated clients; `read` of public pages only, local addresses refused, code blocks removed) but it is Python
+  and is not wired to the agents: to be written in Nuclear with the plan above.
 
 - **The NuclearLang website rewritten in Nuclear (asked by the user 2026-11-10: Dragonfly web/react, new design, basic
   search, SPA + static text pages; moved to `~/Documents/projects/nuc/react/nuclearlang_website`):** DONE as a project
@@ -172,6 +233,32 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   `docs/context/`.
 
 ## Untested (done; needs a manual test)
+
+- ADR-0103 in a running VS Code: the Loop panel's Generate stage (only `nuclear-loop` ran it) and the MCP generators
+  from an interactive Claude Code / Codex / Cursor (only called from Python).
+- The nestjs `ilike` is Sequelize's `Op.iLike` (PostgreSQL only): with MySQL/MariaDB/SQLite it is not case-insensitive
+  everywhere yet (only SQLite ran in the checks, with `like`).
+- ADR-0102 §§21–22 in a running VS Code: an interrupted run resumed after a real restart, the regular checks' notices,
+  the OpenCode MCP entry (its config format `mcp.<name> = { type: local, command }` was not run against OpenCode).
+- ADR-0102 §§15–19 in a running VS Code (the notifications, the badge, a run or a chat job going on after a tool switch,
+  the step retry buttons, the context meter): the chat page, the settings page (Start/Restart, Pull, the MCP buttons
+  against the real CLIs, Allow/Deny), the Retry button and the diagnosis box (only node checks of their scripts and the
+  engine's tests ran).
+- ADR-0102 §14 (MCP local first): only through `claude -p` with Sonnet; not run from an interactive Claude Code, Codex
+  or Cursor, nor with Opus or Haiku.
+- ADR-0102 decisions 9–10 (editors 0.39.0, 2026-11-11): the JetBrains *Nuclear Loop* tool window in a running IDE (only
+  compiled against Android Studio 2026.2), the panel's *For the agent* tab and the Loop's new stages in a running VS
+  Code (only `nuclear-loop` ran them), `install.sh --ai` on a clean machine
+  (here the graph and the Developer were already installed), `nuclear-loop` from a release archive (`stage.sh` output
+  ran here; `install.ps1` does not link it: Windows gets `nuclear-loop.cmd` in the installation's `bin/`).
+
+- ADR-0102 (the AI loop, editors 0.38.0): the Loop panel inside a running VS Code (only a headless render with the real
+  run data and stubbed theme was screenshot: form, levels 1–3), a Jira import against a real site (`jiraIssue`,
+  `jiraMine`, ADF), a GitHub issue import (`gh`), an exported CI file run on GitHub/GitLab/Bitbucket, the deploy stage
+  with real `seed`/`integration`/`deploy` commands, the MCP server added to an interactive Claude Code / Codex / Cursor
+  (it ran over stdio from a Python MCP client and from `claude -p --mcp-config`), the keyring on macOS/Windows (only
+  libsecret here). Ran end to end with the engine alone: a local-only run and a Claude-led run (USD 0.08) on fresh
+  fastapi projects, every stage passed.
 
 - ADR-0100 §5 migrations against PostgreSQL, MySQL and MariaDB (only SQLite ran: the runtimes' tests, the check
   scripts and both dialects end to end with `dragonfly migrate` on a copy of tasks_api, data kept through a column
@@ -288,9 +375,6 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
 - `hide Page` is written on `package:flutter/foundation.dart` (5 `flutter analyze` warnings in clean-flutter-project,
   output unchanged by ADR-0100): `hidden_from` uses every library of a definitions package (`def_libraries`), not the
   library that exports the name; fix it with the symbol's own library + `reexports`.
-- An `appcomponent` alias with the camelCase name of a use case it aliases (`createProject() = CreateProject.exec`)
-  collides with the injected field in TypeScript (found with tasks_api; the example renamed its aliases): a
-  diagnostic or another field name is missing.
 - Dart dialect: `match` over a typed `Result` writes `(result as Right<E, T>).value`, which `flutter analyze` reports as
   `unnecessary_cast` (6 warnings in rick_and_morty's `character_list_screen`); also 3 infos there
   (`use_build_context_synchronously`, `unintended_html_in_doc_comment`). Not caused by the move.
@@ -325,9 +409,9 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   `components/tasks/data/entities/task.nuc`: it is now N0309; the fix is `@primary(generated = true)` (not changed:
   the user's project).
 
-- The `dragonfly` CLI for backend projects has `new`, `build`, `install`, `run`, `test` through the dialect's
-  `[toolchain]` (2026-11-05, plan 002 D5 in its first form); missing: `make` generators for backend kinds, `check`
-  and `watch` for backend projects, `[toolchain]` for mobile (today `"flutter"` is still hard-coded in `cli/`).
+- The `dragonfly` CLI for backend projects has `new`, `build`, `install`, `run`, `test`, `migrate`, `check` and `make`
+  (every kind, from the platform's `[layout]` + `[skeletons]`, 2026-11-11); missing: `watch` for backend projects,
+  `[toolchain]` for mobile (today `"flutter"` is still hard-coded in `cli/`).
 - `@acl`/guards and sessions as in Flutter; logs with call sites (`[call_site]`) for Python.
 - `examples/stdlib/` has no Python version of the 10 areas yet; `tools/stdlib-check.sh` runs TypeScript and Dart.
 - Publish `dragonfly-py` (PyPI); the generated `pyproject.toml` asks for `dragonfly-py` by name.
@@ -370,6 +454,27 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
 - Binaries for other platforms (macOS, Windows) in the packages.
 - Mixed debugging in Android Studio.
 
+## Pending: AI loop (nuclear-graph, nuclear-developer, the Loop tool; ADR-0102)
+
+- Weight training (LoRA): what it needs is `specs/007-lora-nuclear-coder/plan.md` (asked by the user 2026-11-11). To
+  decide with the user: where the training answers come from (self-distillation validated by the compiler, or Claude's
+  answers — check Anthropic's terms on training models with outputs first; the budget approved so far is USD 20), the
+  base model's license (`qwen2.5-coder:3b`), and a GPU (none here: a rented one ≈ USD 5–15 per run).
+- The local agents after round 17: 37/45 and 14/17 (round 15: 38/45 and 15/17) (Sonnet 39, 17), features 1/3
+  (Sonnet 3/3). Left: the local tester writes tests that read an empty database or copy a close example, the planner
+  maps a kind only from its own word ("application component" is not `appcomponent`), an agent's `model` field and a
+  graph's `state` in the same file are still missed (`eval/results/REPORT.md`).
+- The local planner on a spec in plain words (no Dragonfly words: "an author has a name; POST /authors adds one")
+  planned two pieces in a component named `data` (`components/data/data/entities/author.nuc` and a test); Sonnet then
+  wrote the rest (two MCP runs, 2026-11-11). Specs written with the platform's words plan well (eval rounds 10–11).
+- The chat (*Nuclear agent*), the settings page, the notifications and the Retry buttons are in VS Code only; Android
+  Studio has the Loop tool window without them.
+- The local tester copies a solved graph example close to its task (a models-only spec got an appcomponent test): such
+  a local-only run now fails at Tests first with the diagnosis; the tester's retrieval needs examples filtered by what
+  the plan declares.
+- `nuclear-graph` and `nuclear-developer` are installed from the source tree only (`./install.sh --ai`); the release
+  installers bring `nuclear-loop` but not them (they are not published to PyPI).
+
 ## Pending: nuclear (language and compiler)
 
 - `Name<T>.member(...)` (`Set<int>.of`, `List<int>.filled`) does not parse: a generic type before a member; today
@@ -379,10 +484,13 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   and `editors/` (rule 7). Deferred as disproportionate for a niche case with a working annotation workaround; do it
   with the owning sessions.
 
+- Type definitions carry no member types: a value returned by a library method is untyped, so a library member on it
+  (`path.length` of `~toolchain.pathOf(...)`) is written as it is (wrong in Python) until the value is typed
+  (`path: string = ...`). Found again by the AI loop (2026-11-11).
 - `nuclear fmt` limits (2026-11-10): only reflow, it does not add trailing commas or wrap long lines; the two
   external projects (`rick_and_morty`, `nuclear_langgraph_agent`) are not formatted yet (only `--check` was run: 5+
   files would change in rick_and_morty, no errors) — run `nuclear fmt .` there when the user wants.
-- Components per principle 6 of the base · MCP server · `const` inference in
+- Components per principle 6 of the base · `const` inference in
   Dart · TypeScript type definitions (generator from `.d.ts`). Not expressible yet: `docs/context/nuclear/limits.md`.
 - Postponed by the user: everything Node.js/Express. Do not touch it until asked.
 
@@ -398,6 +506,283 @@ from the CLI, an MCP server, a 30-minute validated tutorial and comparison table
   target), only if the user wants the same `.nuc` to build for TypeScript and Dart.
 
 ## Log (newest first)
+
+- 2026-11-11 · nuclearlang (AI loop session) · Pushed every repository and created the missing ones (asked by the user:
+  "sube al repositorio y crea los repositorios que no existan"): nuclear-graph, nuclear-developer and nuclear-knowledge
+  (`nuclear-developer/data`) created public under `nuclearlang` with LICENSE (Apache-2.0), CONTRIBUTING, CHANGELOG and
+  the noreply identity (the two had the global gmail); the org profile lists them; `nuclear-graph/image.png` (a
+  screenshot of the user's) kept out by `.git/info/exclude`. Before: root cargo test, dragonfly 36, graph pytest 20,
+  nuclear-vscode 15 green; staged files scanned for e-mails, home paths and keys (none). Left: CI for the three new
+  repositories (none yet: nuclear-developer and the graph's tests need the whole tree and a running graph).
+
+- 2026-11-11 · nuclearlang (AI loop session) · ADR-0103 docs the earlier pass missed (asked by the user): `dragonfly gen`
+  in the skill (`agents/skills/nuclear/SKILL.md`, step 1), `dragonfly/README.md`, `dragonfly/docs/dragonfly/README.md`
+  (Generators section), the Loop's Generate stage in `nuclear-vscode/README.md`, the `http` modules in the backend
+  CONTEXT, `[[generators]]` in the mobile and web CONTEXT, a line in the CHANGELOGs of nuclear, dragonfly,
+  dragonfly-{backend,mobile,web} and nuclear-vscode. Left (stopped by the user): rebuild + ingest the knowledge base
+  (`nuclear-graph knowledge check` lists 4 changed files) and copy the skill to `~/.claude|.agents|.codex/skills`.
+
+- 2026-11-11 · nuclearlang (AI loop session) · ADR-0103 steps 2–5 (asked by the user: the CLI and the MCP generate
+  most of the code on the three platforms). `dragonfly gen` (see Half done for what it does and where), the backend
+  `@key` decorator (fastapi, nestjs docs.toml), `alias.rs`: a facade alias named like its use case's field gets the
+  field `<name>Instance`, MCP tools + instructions (`nuclear-graph/src/nuclear_graph/mcp_server.py`, tests in
+  test_mcp_loop.py), the Loop's Generate stage (`loopEngine.ts`: `specResources`, `nucFiles`, `generateStage`,
+  `generatedNote`, `withoutGenerated`; 2 node tests), editors 0.44.0 (the three packaged and installed), the knowledge
+  base rebuilt and ingested. Docs: ADR-0103 (decisions refined, limits), spec/dialects.md (`[[generators]]`, `[gen]`),
+  spec/{backend,mobile,web}.md (Generators), spec/flutter.md §11, the tutorial, the CLI's USAGE, cli CONTEXT,
+  docs/ai/loop.md, nuclear-graph README, vscode context. Checked: root cargo test + clippy, dragonfly 36 + clippy,
+  fastapi-check, nestjs-check, spec-checks fastapi/nestjs 16/0, nuclear-vscode `npm test` 15, graph pytest 20, live
+  runs (above).
+
+- 2026-11-11 · nuclearlang (AI loop session) · Answered the user (why the agents do not generate with the CLI; can the MCP
+  generate most of a feature): no — `dragonfly make` writes one-kind skeletons without fields or wiring (backend and web
+  from `[skeletons]`, mobile from scaffold.rs), the MCP only passes `dragonfly make` through, there is no field-aware,
+  wired generator (Phoenix `phx.gen`, Laravel `make:model -mcr`, Symfony `make:crud`), and the backend has no REST
+  repository. Proposed `dragonfly gen` (data-driven by each platform, exposed over MCP, a Generate stage in the Loop,
+  the agent writing only custom use cases and UI); waiting for the user's choices. Nothing changed.
+
+- 2026-11-11 · nuclearlang (AI loop session) · The user's resumed run (nuclear_rick_and_morty, "Implements list character
+  feature") kept failing at Code with N0220 `CharactersAppComponent`. Causes: (1) the backend platform has no outgoing
+  HTTP connection, so a backend that calls the Rick and Morty API cannot be written in Nuclear by anyone (already in
+  "Half done": the platform pieces before migrating nuclear-graph); (2) the local planner split the plain-words spec into
+  one piece (an entity) and the tester (written before the plan-names rule) injected a class the plan never had, so
+  every repair went in circles. Fixed: *Tests first* stops the run when a test injects a class neither the plan nor the
+  project declares, naming it and the plan; the diagnoser gets "X is not in the plan" for an N0220 of an unplanned class
+  and classifies it as `spec` (before `code`), with the action "name every piece in the spec with the platform's
+  words, or let Claude lead, then restart from Plan". Found on the way: the knowledge base inside nuclear-developer made
+  its project fail (the copied `.nuc` examples were compiled with it): a folder that is a repository of its own is no
+  longer part of a project (`project::sources`, test `a_nested_repository_is_not_part_of_the_project`). Checked: cargo
+  test + clippy, Developer `dragonfly test` 5 + pyright 0, nuclear-vscode `npm test` 13. Editors 0.43.1.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Fail-safe runs, checked connections, every integration in the settings
+  (asked by the user: VS Code was restarted and a run stayed "running" for ever with nothing working on it). `loopSafety.ts`
+  + the engine: atomic saves, an append-only trace log per run, an owner heartbeat, a ledger of written files undone on
+  recovery, `recoverRun` + resume from the failed step (on activation, `nuclear.ai.resumeInterrupted`; `nuclear-loop
+  retry`; `nuclear-loop runs` marks interrupted runs), a lock (a run a live process owns is not started twice), a watch on
+  every call (cut and retried on `callTimeoutMinutes`, or `stallSeconds` without the Developer or with Ollama holding no
+  model), a time limit on commands (the process group killed), a preflight step before every run (the Developer, the
+  graph, Ollama, the models installed, Claude when it leads, free disk). `connections.ts`: every connection (also
+  Codex, OpenCode, GitHub, Jira) checked every `checkEveryMinutes` with a notification on a change, and before each chat
+  question; a chat question left unanswered is marked interrupted with Retry. Settings with defaults for every
+  integration (`nuclear.ai.claude.*`, `codex.*`, `opencode.*`, `cursor.mcpFile`, `github.command`, `jira.*`, `watch.*`,
+  `resumeInterrupted`, `checkEveryMinutes`), the settings page shows the live checks and every field, OpenCode added to
+  the MCP list, Jira's site and email are settings (only the token is a secret). Tests: nuclear-vscode `npm test` 12
+  (recovery with the half-written file undone then resumed, a stalled call cut and retried, the preflight, a hanging
+  command killed). Docs: ADR-0102 §§21–22, the vscode README and context, docs/ai/loop.md, the Developer's README.
+
+- 2026-11-11 · nuclearlang (AI loop session) · The knowledge base as its own repository (asked by the user: the chat
+  answered that it knew nothing of the MCP). Cause: the agents' collection admitted only the language and platform
+  specs, examples and words, never the tools' docs (MCP, Loop, CLI, editors). `nuclear-developer/data` (`nuclear-knowledge`,
+  git init, the root's noreply identity, no commit; ignored by nuclear-developer): `sections.toml` (17 sections in
+  reading order, `agents = false` for the target languages, the dialects underneath, the runtimes and the ADRs; the
+  website's checkout), 530 files copied byte for byte, `INDEX.md`, `manifest.json` (source, repository, section, size,
+  SHA-256), README, LICENSE. `nuclear-graph knowledge build|check` (`knowledge.py`: the tree and the website, the help of
+  `nuclear`, `dragonfly`, `nuclear-loop`, `nuclear-graph` and `nuclear help words|layout --platform`; `docs/aprende` and
+  CodeBuilder never copied); `ingest` of a folder with a manifest replaces the whole knowledge and takes each file's
+  agents flag from its section. The agents' collection went from 890 to 1917 chunks; the chat now explains the MCP
+  (Model Context Protocol, said in nuclear-graph's README and docs/ai/loop.md: the model had invented an expansion).
+  Tests: `test_knowledge.py` (a build copies everything and a changed comma is found; the sections decide what the
+  agents read; this tree's base is complete). Docs: both READMEs, the base's README, docs/ai/loop.md, AGENTS.md,
+  ADR-0102 §20, install.sh. Checked: graph pytest 18.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Answered the user: the Smart Graph is populated (from the tree's sources, the
+  prompts and the distilled examples), there is no separate seed dataset; nothing changed.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Report for the user: where the Smart Graph's content comes from (sources,
+  prompts, examples, data folder); found 7 `review-*` examples from a test MCP run in the `examples` collection.
+
+- 2026-11-11 · nuclearlang (AI loop session) · The five compiler gaps fixed without changing a rule of the language
+  (asked by the user). (1) A call to a function of the type definitions is typed by its `returns` (`def_function_ret`:
+  `env("X").toInt()` resolves; the Developer's context window is `CONTEXT_TOKENS` again). (2) N0222 also when the
+  un-awaited call is kept in a variable and then used (`found = books.all()`, `found.length`). (3) N0102 for a call to a
+  method hidden by a local of the same name (`prompt(...)` inside `write(prompt: string)`); a parameter named like its
+  own method that does not call it (`page(page: int)`) stays fine. (4) Python `??` with a call or a map read on the
+  left: the optional operator template `coalesce_once` (contract) with an operator `helper` (now written for operators
+  too), Python `_coalesce(value, lambda: fallback)` — evaluated once, the right side still lazy, pyright strict 0;
+  `diagnoser.nuc` writes `??` again. (5) `docs.toml` entries are Nuclear only: what a dialect writes underneath a word
+  moved to `[underneath.<section>]` (fastapi, nestjs, flutter, react: SQLAlchemy, TypeORM, Sequelize, pydantic,
+  LangChain/LangGraph, pytest, node:test, Cubit, bloc_test, dio, flutter_native_splash...), shown by `Dialect::doc` as
+  **Underneath (dialect):**, left out of the graph's agent collection (`words`, `nuclear_only`); "Full rules" point to
+  the platform; spec/backend.md no longer names TypeORM. Found on the way and fixed: the nestjs runtime exported
+  `iLike` (the platform's `ilike` did not compile with nestjs) and `orderBy(field, desc = true)` reached it as an object
+  for a boolean (`SortOrder`); its docs and spec/nestjs.md said `iLike` / `orderBy(field, true)`; defs regenerated.
+  Tests: projects `a_type_argument_must_name_a_class` kept, rules N0222 (kept), `a_local_does_not_hide_a_called_method`,
+  graph `test_the_agents_never_read_what_a_dialect_writes_underneath`, the spec/python.md `??` equivalence (16/0).
+  Docs: spec/{dialects,diagnostics,definitions,python}.md, dragonfly-backend/spec/{nestjs,backend}.md. Checked: cargo
+  test + clippy -D warnings, dragonfly 31, spec-checks nestjs/fastapi 15/0, python 16/0, typescript 29/0, dart 30/0,
+  nestjs-check and fastapi-check green, dragonfly-nest tests 5, graph pytest 15, Developer `dragonfly test` 5 + pyright
+  strict 0, the graph re-ingested (no framework word left in the agents' answers sampled). Editors 0.42.1. Eval round 17
+  (the reworded words): 37/45, held out 14/17 (one less: `entity-reader`, the 3B coder put `@column` after its field and
+  did not repair it from N0013); round 16 void (stopped at 10 minutes).
+
+- 2026-11-11 · nuclearlang (AI loop session) · Report of the pending work for the user (from this file); the AI loop's
+  eval line updated to round 15.
+
+- 2026-11-11 · nuclearlang (AI loop session) · The pipeline failed in the user's VS Code at Code (`nuclear: command not
+  found`: an editor started from the desktop has no `~/.local/bin` in its PATH; the pipeline had only been run from a
+  terminal). Fixed: every pipeline command runs with `toolEnv()` (the installers' bin folders added; also `claude`,
+  `dragonfly explain`, the settings page's services, `loopCli`); reproduced and checked with `env -i PATH=/usr/bin:/bin`.
+  The same run exposed: `inject<Undeclared>()` compiled (now N0220 for a call's type argument, generic parameters
+  exempt; test `a_type_argument_must_name_a_class`); the diagnoser read pytest's raw log (now the `dragonfly explain`
+  text, and its prompt forbids the generated code); a piece's errors carried the scratch file's path (now by line); the
+  tester copied a solved example with `inject` for a models-only spec (it now gets only the plan's names, also when it
+  repairs a test file, "nothing to inject" when there is nothing, a search without `inject`); *Tests first* that cannot
+  write a compiling file now fails the run (it passed empty before). Asked by the user, all in VS Code (editors
+  0.42.0): retry from the step that failed (`start(from, step)`, `kept()`; the run's and the failed step's *↻ Retry*,
+  *Restart <stage>*, `nuclear-loop retry [--from]`, MCP `developer_retry`, the chat); Loop runs and chat jobs belong to
+  the extension (module-level `engines`, `jobs`), so switching tools leaves them working; notifications
+  (`notifications.ts`: toast with *Open* to the run/session, a badge on the Nuclear icon, counts on the tool tabs, the
+  list in the tool's pane); the chat's context meter (`nuclear.ai.contextTokens`, the assistant's `context` trace), *↻
+  Retry* of a failed question, ↑ / ↓ through the questions asked, what the agent did folded in grey with its time and
+  tokens. Docs: the Developer's README (where it works, documented runs, failures, Nuclear only, known limits, rounds
+  12–15) and CHANGELOG (new), ADR-0102 §19, docs/ai/loop.md, the vscode README and context. Checked: cargo test +
+  clippy -D warnings (root and dragonfly/ 31), nuclear-vscode `npm test` (8 node:test tests) + tsc 0, the chat page
+  driven by a node check (folded steps, meter, ↑/↓, retry link), Developer `dragonfly test` 5 + pyright strict 0, graph
+  pytest 14, the pipeline end to end with a desktop PATH (now fails honestly at Tests first with a Nuclear diagnosis);
+  eval round 15: 38/45, held out 15/17. `/tmp` filled up (my scratch projects; deleted with the user's go — 3.2 GB of
+  another session and 1.8 GB of Flutter temp folders were left).
+
+- 2026-11-11 · nuclearlang (AI loop session) · (1) `dragonfly new` (the user's `dragonfly new nuclear_rick_and_morty-p
+  backend -d nestjs` answered "'nestjs' is a dialect of the backend platform, not of 'mobile'"): a dialect alone gives
+  its platform, a stray word is refused with a hint (`did you mean -p backend?`), an option glued to the name is
+  refused, names are checked; the backend "Next" lines use the dragonfly commands; the landing says "Mobile, web and
+  backend" (it said "Flutter apps"); test `new_reads_the_platform_from_the_dialect_and_refuses_typos`; cli context and
+  spec/flutter.md §11. (2) Failures (asked by the user): calls to the local agents retried with exponential backoff and
+  full jitter (`backoff`, `transientStatus`, `retryAfter`, `config.retry`; also the chat), the local diagnoser
+  (`diagnoser.nuc`, `POST /developer/diagnose`, rules + `nuclear check`/`dragonfly doctor` + prompt `agents/diagnose.md`,
+  Nuclear test of the rules), `run.diagnosis` on the run, the journal and the chat, retry from the failed stage
+  (`LoopEngine.start(from)`, `run.previous`, `restoreWritten`; panel *↻ Retry from*, chat, `nuclear-loop retry`, MCP
+  `developer_retry`). (3) Settings (asked by the user): `nuclear.ai.*` settings and the *Settings and integrations* page
+  (`settingsPanel.ts`, `aiSettings.ts`, `localModels.ts`: services start/restart with the models, Ollama models under
+  the 3B rule with pull, MCP in Claude Code/Codex/Cursor, graph clients and requests, Jira, GitHub, Claude's model,
+  retries); `readConfig(root, platform, machine)`. Editors 0.41.0 (all three packaged, VS Code installed); nuclear-vscode
+  `npm test` (5 node:test tests: backoff, retry against a fake Developer, resume from a stage, chat helpers, the 3B
+  rule). Docs: ADR-0102 §§17–18, docs/ai/loop.md, both READMEs, the vscode context. Checked: dragonfly cargo test 31 +
+  clippy -D warnings, Developer `dragonfly test` 5 + pyright strict 0, graph pytest 14, tsc, `nuclear-loop retry` of a
+  failed run (resumed at Code, diagnosed as `code` with the compiler's error), the settings page rendered from a real
+  state by a node check.
+
+- 2026-11-11 · nuclearlang (AI loop session) · (1) The local agents' prompts are files (asked by the user: "no se
+  entiende nada de una sola línea"): `nuclear-graph/src/nuclear_graph/prompts/agents/` (piece, repair, test, plan,
+  plan-again, security, document, chat + README), ingested as `agent.<step>`; `Workbench.prompt(name, values)` fills
+  `{{name}}` and drops an empty section; the agents hold no prompt text and say which files they use; the workbench is
+  grouped (graph, prompts, models, trace). (2) A chat with the local agents (asked by the user): VS Code tool *Nuclear
+  agent* (`Ctrl+Alt+A`, `chatPanel.ts`): questions → the new local assistant (`assistant.nuc`, `POST /developer/chat`,
+  `ChatRequest`, prompts `chat.md` + `agents/chat.md`), `/task` → a Loop run of the local agents with its journal,
+  templates from the project's map, sessions in `.nuclear/chat/`. (3) Answered the user: nuclear-graph is Python (see
+  Half done). Docs: ADR-0102 §§15–16, docs/ai/loop.md, the Developer's README, nuclear-vscode README + context.
+  Checked: Developer `dragonfly test` 4 + pyright strict 0, `nuclear check` 0, tsc, the chat's templates/history and its
+  page script and markdown by a node check. Eval round 12 (29/45) is void: `nuclear-graph ingest` run from inside
+  `nuclear-graph/` took that folder as the only root and removed the rest of the graph (fixed: an ingest removes only
+  sources of its own roots, test in test_graph.py; the graph re-ingested); round 13 with the prompt files: 38/45, held
+  out 15/17 (Sonnet 39, 17), the best so far.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Over MCP the local developer works first (asked by the user: a cloud
+  agent — Sonnet, Opus, Haiku — gives the task to the Nuclear Developer first, then only validates and corrects; the
+  local agent documents everything it did). nuclear-graph MCP: new instructions (local first → validate → correct
+  only what is wrong → review), `developer_task` (writes `specs/<id>/spec.md` led by the local agents, runs
+  `nuclear-loop run --lead local`, answers the journal and asks for the review), `developer_review` (appends to
+  `.nuclear/loop/runs/<id>.review.md`; corrected files, once the project's check is `ok`, go to the graph's `examples`),
+  the `feature` prompt rewritten in that order (graph re-ingested); test `tests/test_mcp_loop.py`. Loop engine: every
+  run writes its journal `.nuclear/loop/runs/<id>.md` (`journalMarkdown`: files written, what is left, each step with
+  its agent, trace and what it read) and a check failure is summarised by its first error, not `]`. Developer: the
+  local **documenter** (`documenter.nuc`, gemma4:e2b, `POST /developer/document`) writes "what I built / how I checked
+  it / what is left" at the top of the journal. Editors 0.40.1 (all three packaged, VS Code installed). Docs: ADR-0102
+  §14, docs/ai/loop.md, both READMEs. Checked: graph pytest 14, Developer `dragonfly test` 4 + pyright strict 0, tsc,
+  `./install.sh`; `developer_task` run directly on a fresh project, and Sonnet through `claude -p --mcp-config` twice
+  (USD 0.56): it called `developer_task` first, corrected the rest, and on the second run (after the tool's answer asked
+  for it) recorded its review with `developer_review`; check ok, tests 3/3.
+
+- 2026-11-11 · nuclearlang (AI loop session) · The local agents write only Nuclear, and the tools write the rest (asked
+  by the user: drop Zed, check the alias, `dragonfly make`, LoRA, Nuclear only, tests first, logs for agents). Zed: the
+  Loop tasks removed (the Loop is VS Code and Android Studio only). Compiler (generic): `--platform backend|mobile|web`
+  for every command (the platform's default dialect underneath); `nuclear spec --brief --platform` = base + platform
+  sheet (`spec/brief/{backend,mobile,web}.md`, new; the dialect sheets cut to what a dialect adds; the backend ones still
+  said `nuclear.toml`); `.nuclear/map.md` (`map.rs`: every declaration by component with its kind, doc comment and
+  members, written by check/build); `[layout]` + `[skeletons]` in platform.toml (`Dialect.skeletons`); `nuclear fix`
+  (applies every exact fix); N0221 (an `appcomponent` method without a body: it was generated empty), N0222 (an async
+  call used without `~`, with its fix), N0114 for a kept `Result` read as its value (`found.length`, `found[0]`, with
+  the fix; a test's `x = ~call()` is now typed `Result`); N0102 also for a member declared twice in one module (a
+  local answer had `load()` twice and it compiled). dragonfly CLI: `make <kind> <component> <Name>` for backend
+  and web from the platform (test over every kind and dialect); `explain` reads Python and Node stacks and test
+  summaries (backend/web line maps); `[toolchain] install_local` reinstalls folder dependencies (a stale
+  `nuclear_graph` was found this way). Graph: collection `nuclear` (only what a local agent reads, target code blocks
+  removed, `platform` on every chunk), `Toolchain` takes a platform, MCP `developer_*` take `platform`. Developer:
+  `platform` everywhere instead of `dialect`, recall from `nuclear`; the planner takes the spec's sentence as each
+  piece's task (the model's summary had turned the alias into a method). Prompts: few-shots that compile and repeat no
+  held-out task (appcomponent aliases, entity columns, `replaceAll`, state model + manager; a whole test file).
+  Loop engine: spec → plan → tests first → code (`nuclear fix .` before any agent repair; a test file goes to the
+  tester) → verification (tests run; a failure told by `dragonfly explain` goes back to the coder, 3 rounds) → security
+  → artifacts → deploy; a step's `agent` field / the panel's *For the agent* tab. Measured and discarded: the
+  `dragonfly make` skeleton given to the local coder (29/42 against 37). Eval: rounds 10–11 (the first feature
+  passed by the local agents alone in round 10), two acceptance texts accepted the entity by folder. LoRA:
+  `specs/007-lora-nuclear-coder/plan.md`. Editors 0.40.0 (all three packaged, VS Code installed). Docs: ADR-0102 §§11–13,
+  spec/{projects,dialects,diagnostics}.md, briefs, docs/ai/loop.md, the graph's and the Developer's READMEs, cli context.
+  Checked: cargo test + clippy -D warnings (root and dragonfly/), fastapi/nestjs/react checks, spec-checks 0, graph
+  pytest 12, Developer tests 4 + pyright strict 0, tsc, the three extensions built, `./install.sh`, five
+  `nuclear-loop run` end to end (every stage runs; the last stops at the tester's empty-database test).
+
+- 2026-11-11 · nuclearlang (AI loop session) · Report for the user: what the AI loop (ADR-0102) has and lacks; nothing changed.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Summary of the pending work for the user (from this file); nothing changed.
+
+- 2026-11-11 · nuclearlang (AI loop session) · Fixed what the AI loop found and did the pending AI-loop work (asked by
+  the user: "arregla los errores que encontraste, después continúa con lo que falta"). Compiler (generic):
+  messages of snake_case dialects name what the `.nuc` writes (`naming::apply` returns the renames, `naming::restore`,
+  `naming::camel`); N0116 closes a kind through the runtime classes it inherits when the type definitions list their
+  members (`closed_members`; `[kinds.x] method_members` for what a method template adds: flutter/react
+  `purge{{name|pascal}}`, `{{name}}AsLocal`); N0013 says where a decorator left after the last member goes; N0019 for a
+  variable named like a method of its module (Python wrote `self.pieces = ...`); Python's `??` binds like a conditional
+  (`conditional_form`, `Template::literals`) and a conditional in a ternary's first branch keeps its parentheses (Python
+  grouped them wrong); `[layout]` in every `platform.toml` (`Dialect.layout`, `nuclear help layout --dialect d`);
+  `spec/brief/nuclear-base.md` no longer says the library is the target's. dragonfly CLI: the mobile skeleton of
+  `dragonfly new` did not compile (`toList()`); `every_new_project_compiles_with_its_dialect` builds every skeleton.
+  dragonfly-web: `spec/brief/react.md` (the web platform had no agent sheet; Sonnet went from 0/4 to 4/4 web tasks).
+  Loop: `nuclear-loop` (`loopCli.ts`: run / ci / export / runs; `parseSpecMarkdown`, `ciCommands`), installed by
+  `install.sh`, `stage.sh` (+ `.cmd`), `build-runtimes.sh` and the release installer; JetBrains *Nuclear Loop* tool
+  window (`NuclearLoop.java`), Zed tasks; `install.sh --ai` (graph + Developer + `nuclear-developer` launcher). Developer:
+  the planner builds paths from the layout (`Toolchain.layout`/`path_of`, `layout_path`, `snake` in nuclear-graph, defs
+  regenerated), reads moved columns, keeps only what the spec names, takes kinds and forgotten pieces from the spec's
+  words, appends the sentence that introduces each piece; a Nuclear test of it; a feature is distilled as one graph
+  example per file. Eval: 10 mobile/web tasks and 3 `[[feature]]`
+  tasks (planned, written piece by piece, checked as a fresh `dragonfly new` project); rounds 4–9 (single files local 37/42 vs Sonnet 36; features: 2 of 3 compile, 0 pass; Sonnet 3/3; Claude USD 0.34 more, total 0.89). Prompts:
+  `piece.md` no longer lists `contains` (membership is `in`), rules to keep every value the task gives and to write
+  only what it declares. Editors 0.39.0
+  (all three packaged; VS Code installed). Docs: ADR-0102 decisions 9–10, spec/{dialects,diagnostics}.md, briefs, skill,
+  docs/ai/loop.md, the editors' context files and READMEs, nuclear-graph and nuclear-developer READMEs. `nuclear-loop run` with the local agents only took a
+  fresh fastapi project through every stage (5 pieces, each ok in 1 attempt; the tester's file did not compile and was
+  skipped). Checked: cargo
+  test + clippy -D warnings (root and dragonfly/), fastapi/nestjs/react checks, nuclear-graph pytest 10, Developer
+  `dragonfly test` 4 + pyright strict 0, tsc, `npm run package`, `jetbrains/build.sh`, `zed/build.sh`, `./install.sh`.
+
+- 2026-11-10 · nuclearlang-60 · nuclearlang-4e's changes verified green here (cargo test 21 + clippy 0, fastapi/nestjs
+  checks, spec-checks, nuclear-vscode tsc) and NOT pushed: waiting for the user (nuclear docs + ADR-0102,
+  dragonfly-backend `e.message` on a caught exception, nuclear-vscode Loop tool 0.38.0, website "AI" menu; they name
+  the unpublished nuclear-graph / nuclear-developer). `tools/context/check.sh` also skips `dist`, `.pytest_cache`,
+  `__pycache__` (the checks' build output).
+
+- 2026-11-10 · nuclearlang (AI loop session) · The AI loop (asked by the user; ADR-0102; decided with the user: retrieval +
+  distillation instead of weight training, up to USD 20 of Claude, phases without stopping). New repositories in the
+  tree: `nuclear-graph/` (Nuclear Smart Graph: Chroma + EmbeddingGemma, 4 collections, documents AES-GCM encrypted,
+  key and owner token in the keyring, server on 127.0.0.1 with per-client tokens the user allows, no `Origin`, only
+  ingest writes `knowledge`; ingest of the whole tree + website by hash, 2 783 chunks; 9 validated use-case prompts;
+  MCP server with 13 tools; 7 pytest tests) and `nuclear-developer/` (a fastapi Dragonfly backend in Nuclear: coder,
+  tester, security, planner graphs on qwen2.5-coder:3b / gemma4:e2b; recall → write → check → repair; 3 Nuclear tests;
+  pyright strict 0; `eval/` with 32 tasks: after 3 rounds local 28/32 vs Sonnet 26/32, held out 10/12 vs 11/12, Claude
+  cost USD 0.55). Loop tool in `nuclear-vscode` 0.38.0 (`loopEngine.ts`, `loopPanel.ts`, `Ctrl+Alt+P`): spec form
+  (use cases, Jira/GitHub import, criteria, suggested context, lead), runs as a C4-like zoomable pipeline,
+  `.nuclear/loop.json`, CI export (GitHub, GitLab, Bitbucket); ran end to end local-only and Claude-led. Platform
+  (generic): `nuclear build|check` load `<project>/defs/` (`project::{project_defs, with_project_defs}`, LSP too), backend
+  `dependencies(...)` in `config.nuc` (fastapi `pyproject.toml`, nestjs `package.json`, folder versions), `catch e` +
+  `e.message` fixed in both backend dialects (`[library.error]`). Docs: ADR-0102 + indexes, spec/{projects,definitions}.md,
+  dragonfly-backend/spec/backend.md, nuclear-vscode README + context, AGENTS.md map, `docs/ai/loop.md` + website menu
+  "AI", both new READMEs and AGENTS.md. Checked: cargo test + clippy -D warnings (root and dragonfly/), fastapi-check,
+  nestjs-check, nuclear-graph pytest, Developer `dragonfly test`, tsc, `npm run package`, extension installed. Found and
+  recorded: three compiler issues (Pending: nuclear).
+- 2026-11-10 · nuclearlang-60 · Checked (stop hook): the dragonfly-mobile goldens it listed were rewritten with the
+  same content (nuclearlang-4e's `UPDATE_GOLDEN` run; `git status` clean). nuclearlang-4e is now editing
+  nuclear-vscode (a Loop tool) and the fastapi/nestjs `[library.error] message`: held from commits until it says
+  green. Open with the user: rename `website` → `nuclearlang.github.io` for Pages, and the first release `v0.1.0`.
 
 - 2026-11-10 · nuclearlang-60 · Public repositories, stages 1–3 (asked by the user: "sube los repos a github"; their
   choices: finish the split first, a fresh history for dragonfly, docs/aprende private, the e-mail out of the

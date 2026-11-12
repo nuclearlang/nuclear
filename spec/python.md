@@ -335,6 +335,23 @@ def display(name: str | None) -> str:
     return name if name is not None else "nobody"
 ```
 
+A call or a map read on the left of `??` is evaluated once (pyright cannot narrow a call written twice); the right
+side still runs only when the left is `None`:
+
+```nuclear
+lookup(names: <string, string>, key: string) string
+  names[key] ?? "nobody"
+```
+
+```python
+def _coalesce[T](value: T | None, fallback: Callable[[], T]) -> T:
+    return value if value is not None else fallback()
+
+
+def lookup(names: dict[str, str], key: str) -> str:
+    return _coalesce(names.get(key), lambda: "nobody")
+```
+
 ### 3.12 Errors
 
 `throw` is `raise`; `catch` catches `Exception`.

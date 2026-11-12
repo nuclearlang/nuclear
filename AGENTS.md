@@ -27,7 +27,8 @@ generated code as fast as an expert's, instant transpilation, minimal readable N
    report) ends with a Log line and current lists; half-done work is recorded the moment it is left. Hooks in
    `.claude/settings.json` check it.
 7. The working tree is the `nuclear` repository with the other repositories as folders inside it (plan 006):
-   `dragonfly/` (the CLI), `dragonfly-{mobile,backend,web}/`, `nuclear-{vscode,jetbrains,zed}/`; each has its own git
+   `dragonfly/` (the CLI), `dragonfly-{mobile,backend,web}/`, `nuclear-{vscode,jetbrains,zed}/`, `nuclear-graph/`,
+   `nuclear-developer/` (and `nuclear-developer/data/`, the knowledge base `nuclear-knowledge`); each has its own git
    and is ignored by the root's. If `ast.rs` or a public API of `crates/` changes, build `dragonfly/` too
    (`cargo build --manifest-path dragonfly/Cargo.toml`); the LSP is `crates/nuclear-lsp`. No commits unless the user
    asks; commits only in the user's name.
@@ -66,6 +67,7 @@ generated code as fast as an expert's, instant transpilation, minimal readable N
 | `dragonfly-web`: the web platform; dialect `react` + TypeScript runtime | `dragonfly-web/` (its own repository inside this one, plan 006): `dialects/web/react/` `packages/dragonfly-web/` `spec/{web,react}.md` | [dragonfly-web/docs/context/dragonfly-web/CONTEXT.md](https://github.com/nuclearlang/dragonfly-web/blob/main/docs/context/dragonfly-web/CONTEXT.md) |
 | `dragonfly` CLI | `dragonfly/` (its own repository inside this one: `dragonfly/` crate, `docs/dragonfly/{README,kinds,tutorial}.md`, `docs/context/{dragonfly,cli}/`) | [docs/context/cli/CONTEXT.md](https://github.com/nuclearlang/dragonfly/blob/main/docs/context/cli/CONTEXT.md) |
 | LSP and editor extensions | `crates/nuclear-lsp`, `nuclear-vscode/` (with `theme/`), `nuclear-jetbrains/`, `nuclear-zed/` (each its own repository inside this one) | [docs/context/editors/CONTEXT.md](docs/context/editors/CONTEXT.md) |
+| AI: the private knowledge base (RAG) + the MCP server; the local 3B agents | `nuclear-graph/`, `nuclear-developer/`, `nuclear-developer/data/` (the knowledge base, generated: `nuclear-graph knowledge build`) (each its own repository inside this one; ADR-0102); the Loop tool is in `nuclear-vscode/` | [nuclear-graph/README.md](nuclear-graph/README.md), [nuclear-developer/README.md](nuclear-developer/README.md), [nuclear-developer/data/README.md](nuclear-developer/data/README.md) |
 | Website | the `website` repository (Nuclear, Dragonfly web; today `~/Documents/projects/nuc/react/nuclearlang_website`) | [docs/context/website/CONTEXT.md](https://github.com/nuclearlang/website/blob/main/docs/context/website/CONTEXT.md) |
 | Why a rule exists | — | [docs/adr/README.md](docs/adr/README.md) |
 | What is done / pending | — | [STATUS.md](STATUS.md) |

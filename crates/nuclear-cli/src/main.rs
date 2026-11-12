@@ -9,11 +9,15 @@ use std::process::ExitCode;
 
 const USAGE: &str = "usage:
   nuclear help [<topic>|<command>]                            this help, a documentation topic or the usage of a command
-  nuclear help <word>|words --dialect <name>                  a kind, decorator or header word of the dialect (words: all)
+  nuclear help <word>|words|layout --dialect <name>           a kind, decorator or header word of the dialect (words: all; layout: where each kind's file goes)
   nuclear build <file.nuc> --dialect <name|path> [-o <out>]   transpile (prints to stdout without -o)
   nuclear build <folder> [-o <out>]                           transpile a project (folder with nuclear.toml)
   nuclear check <folder> [--json]                             report the errors of every file of a project
   nuclear check <file.nuc> [--dialect <name|path>] [--json]   report errors (JSON for agents and the LSP)
+  nuclear fix <folder|file.nuc> [--dialect|--platform]        apply every exact fix of the errors (the editor's quick
+                                                              fixes), then report what is left
+  --platform backend|mobile|web                               instead of --dialect: the platform's default dialect
+                                                              (the Nuclear of a platform is the same in all of them)
   nuclear fmt <file.nuc|folder>... [--check]                  rewrite the files in the canonical layout (spacing,
                                                               indentation, blank lines; never reorders); --check
                                                               only lists the files that would change (exit 1)
@@ -22,7 +26,7 @@ const USAGE: &str = "usage:
   nuclear dialect list                                        list the dialects found
   nuclear dialect check <name|path> [--json]                  validate a dialect's files
   nuclear kind new <name> -p <platform> -d <dialect>          a kind package skeleton in kinds/<name>/ (ADR-0095)
-  nuclear spec [--dialect <name>] [--brief]                   print the base language and dialect format (for agents);
+  nuclear spec [--dialect <name>|--platform <p>] [--brief]    print the base language and dialect format (for agents);
                                                               with --dialect, also the spec of the dialect and its parents;
                                                               --brief: the short sheet (what changes from TS/Dart)
   nuclear agent init [--dialect <name>]                       AGENTS.md, CLAUDE.md, a Cursor rule and a Claude Code hook for AI agents
@@ -171,6 +175,19 @@ const DOC_SECTIONS: &[&str] = &["kinds", "decorators", "words"];
 fn dialect_word(l: &Loader, dialect: &str, word: &str) -> Result<String, String> {
     let (Some(d), _) = l.load(dialect) else { return Err(format!("dialect '{dialect}' not found")) };
     let word = word.trim_start_matches('@');
+    if word == "layout" {
+        if d.layout.is_empty() {
+            return Err(format!("dialect '{dialect}' has no platform layout (only the dialects of a platform have one)"));
+        }
+        let mut out = format!(
+            "where each kind's file goes in a {} project ({{component}}, {{screen}}: folders; {{file}}: the name in snake_case)\n\n",
+            d.platform.as_deref().unwrap_or(dialect)
+        );
+        for (kind, path) in &d.layout {
+            out.push_str(&format!("  {kind:<14} {path}\n"));
+        }
+        return Ok(out);
+    }
     let names = |section: &str| d.doc_names(section);
     if word == "words" {
         let mut out = format!("dialect {dialect}: nuclear help <word> --dialect {dialect}\n");
@@ -289,6 +306,21 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    let mut args = args;
+    // `--platform backend` alone: the platform's default dialect (an agent writes for a platform, ADR-0093); `kind
+    // new` takes both
+    if args.dialect.is_none()
+        && args.positional.first().map(String::as_str) != Some("kind")
+        && let Some(p) = args.platform.clone()
+    {
+        match loader(&args).default_dialect(&p) {
+            Some(d) => args.dialect = Some(d),
+            None => {
+                eprintln!("platform '{p}' not found (platforms: backend, mobile, web)");
+                return ExitCode::from(2);
+            }
+        }
+    }
     let pos: Vec<&str> = args.positional.iter().map(String::as_str).collect();
     match pos.as_slice() {
         ["help", ..] if pos.len() <= 2 => match pos.get(1) {
@@ -318,7 +350,7 @@ fn main() -> ExitCode {
                 }
             },
         },
-        ["spec"] if args.brief => match brief(&loader(&args), args.dialect.as_deref()) {
+        ["spec"] if args.brief => match brief(&loader(&args), args.dialect.as_deref(), args.platform.is_some()) {
             Ok(text) => {
                 print!("{text}");
                 ExitCode::SUCCESS
@@ -382,7 +414,7 @@ fn main() -> ExitCode {
         ["defs", "show", name] => defs_show(&args, name),
         ["defs", "search", text] => defs_search(&args, text),
         ["fmt", paths @ ..] if !paths.is_empty() => fmt_command(&args, paths),
-        [cmd @ ("build" | "check" | "tokens" | "ast"), path] => file_command(&args, cmd, path),
+        [cmd @ ("build" | "check" | "fix" | "tokens" | "ast"), path] => file_command(&args, cmd, path),
         _ => {
             eprintln!("{USAGE}");
             ExitCode::from(2)
@@ -512,8 +544,27 @@ fn fmt_command(args: &Args, paths: &[&str]) -> ExitCode {
     if failed > 0 || (args.check && changed > 0) { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }
 
+/// The source with the exact fixes of its errors applied (from the end, skipping overlapping ones), and how many;
+/// `None` when there is none.
+fn apply_fixes(source: &str, diags: &[Diagnostic]) -> Option<(String, usize)> {
+    let mut fixes: Vec<&nuclear_diag::Fix> = diags.iter().filter(|d| d.is_error()).filter_map(|d| d.fix.as_ref()).collect();
+    fixes.sort_by_key(|f| std::cmp::Reverse(f.span.start));
+    let mut text = source.to_string();
+    let mut last = usize::MAX;
+    let mut n = 0;
+    for f in fixes {
+        if f.span.end > last || f.span.end > text.len() || !text.is_char_boundary(f.span.start) || !text.is_char_boundary(f.span.end) {
+            continue;
+        }
+        text.replace_range(f.span.start..f.span.end, &f.replacement);
+        last = f.span.start;
+        n += 1;
+    }
+    (n > 0).then_some((text, n))
+}
+
 fn file_command(args: &Args, cmd: &str, path: &str) -> ExitCode {
-    if (cmd == "build" || cmd == "check") && std::path::Path::new(path).is_dir() {
+    if matches!(cmd, "build" | "check" | "fix") && std::path::Path::new(path).is_dir() {
         return project_command(args, cmd, path);
     }
     let text = match std::fs::read_to_string(path) {
@@ -537,6 +588,27 @@ fn file_command(args: &Args, cmd: &str, path: &str) -> ExitCode {
             let parsed = nuclear_syntax::parse(&file.text);
             println!("{:#?}", parsed.file.items);
             report(&parsed.diagnostics, &file, false)
+        }
+        "fix" => {
+            let Some(dialect) = args.dialect.as_deref().and_then(|n| load_dialect(args, n)) else {
+                eprintln!("fix of one file needs --dialect <name> or --platform <p>");
+                return ExitCode::from(2);
+            };
+            let mut text = file.text.clone();
+            let mut applied = 0;
+            for _ in 0..5 {
+                let diags = nuclear_transpile::check(&text, Some(&dialect));
+                let Some((next, n)) = apply_fixes(&text, &diags) else { break };
+                text = next;
+                applied += n;
+            }
+            if applied > 0 && let Err(e) = std::fs::write(path, &text) {
+                eprintln!("could not write {path}: {e}");
+                return ExitCode::from(2);
+            }
+            println!("{path}: {applied} fix(es) applied");
+            let left = nuclear_transpile::check(&text, Some(&dialect));
+            report(&left, &SourceFile::new(path, text), args.json)
         }
         "check" => {
             let dialect = match &args.dialect {
@@ -682,6 +754,27 @@ fn project_command(args: &Args, cmd: &str, path: &str) -> ExitCode {
         eprintln!("warning[{}]: {}", d.code.id, d.message);
     }
     let dialect = own.unwrap_or(dialect);
+    if cmd == "fix" {
+        // every exact fix the compiler gives (the ones the editor offers), applied until none is left
+        let mut applied = 0;
+        for _ in 0..5 {
+            let out = project::build(&root, &manifest, &dialect);
+            let mut n = 0;
+            for f in &out.files {
+                if let Some((text, k)) = apply_fixes(&f.source, &f.diagnostics)
+                    && std::fs::write(root.join(&f.source_path), text).is_ok()
+                {
+                    n += k;
+                }
+            }
+            if n == 0 {
+                break;
+            }
+            applied += n;
+        }
+        eprintln!("{path}: {applied} fix(es) applied");
+        return project_command(args, "check", path);
+    }
     let out = project::build(&root, &manifest, &dialect);
     if let Err(e) = project::write_metadata(&root, &manifest, &dialect) {
         eprintln!("warning: cannot write {}: {e}", project::METADATA_FILE);
@@ -806,9 +899,11 @@ const BRIEFS: &[(&str, &str)] = &[
     ("python", include_str!("../../../spec/brief/python.md")),
 ];
 
-/// `nuclear spec --brief`: the base brief and the brief of each dialect of the chain (a dialect outside
-/// NuclearLang may bring its own `brief.md` in its folder).
-fn brief(l: &Loader, dialect: Option<&str>) -> Result<String, String> {
+/// `nuclear spec --brief`: the base brief, the brief of the dialect's platform (`spec/brief/<platform>.md`) and the
+/// brief of each dialect of the chain (a dialect outside NuclearLang may bring its own `brief.md` in its folder).
+/// `platform_only` (`--platform`): the base and the platform's sheet, nothing of the language underneath — what an agent
+/// that writes only Nuclear reads.
+fn brief(l: &Loader, dialect: Option<&str>, platform_only: bool) -> Result<String, String> {
     let mut out = String::from(include_str!("../../../spec/brief/nuclear-base.md"));
     let Some(name) = dialect else {
         out.push_str("
@@ -820,6 +915,13 @@ Dialects: ");
     };
     let (d, _) = l.load(name);
     let d = d.ok_or_else(|| format!("dialect '{name}' not found or invalid (nuclear dialect check {name})"))?;
+    if let Some(text) = d.platform.as_ref().and_then(|p| read_doc(&format!("spec/brief/{p}.md"))) {
+        out.push_str("\n---\n\n");
+        out.push_str(&text);
+    }
+    if platform_only {
+        return Ok(out);
+    }
     for n in d.chain.iter().rev() {
         let own = d.files.iter().find_map(|f| {
             let dir = PathBuf::from(&f.name).parent()?.to_path_buf();
@@ -1052,8 +1154,12 @@ mod tests {
         }
         let l = Loader::new(nuclear_dialect::dialect_dirs(root));
         // the flutter dialect lives in dragonfly-mobile: checked only when it is in this working tree
-        if let Ok(flutter) = brief(&l, Some("flutter")) {
+        if let Ok(flutter) = brief(&l, Some("flutter"), false) {
             assert!(flutter.len() <= 16_000, "the flutter brief has {} bytes", flutter.len());
+        }
+        // an agent that writes only Nuclear gets the platform's sheet and nothing of the language underneath
+        if let Ok(backend) = brief(&l, Some("fastapi"), true) {
+            assert!(backend.contains("Platform `backend` brief") && !backend.contains("Dialect `python`") && !backend.contains("Dialect `fastapi`"), "{backend}");
         }
     }
 

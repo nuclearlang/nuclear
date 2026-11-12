@@ -18,6 +18,13 @@ done
 rm -rf "$DEST"
 mkdir -p "$DEST/bin" "$DEST/packages"
 for b in "$@"; do cp "$b" "$DEST/bin/"; done
+# nuclear-loop (ADR-0102): the Loop engine bundled for node by nuclear-vscode (`npm run loop`)
+if [ -f "$REPO/nuclear-vscode/out/nuclear-loop.js" ]; then
+  cp "$REPO/nuclear-vscode/out/nuclear-loop.js" "$DEST/bin/"
+  printf '#!/bin/sh\nexec node "$(dirname "$(readlink -f "$0")")/nuclear-loop.js" "$@"\n' > "$DEST/bin/nuclear-loop"
+  chmod +x "$DEST/bin/nuclear-loop"
+  printf '@node "%%~dp0nuclear-loop.js" %%*\r\n' > "$DEST/bin/nuclear-loop.cmd"
+fi
 for r in $ROOTS; do
   # dialects, definitions, specs, the platforms' guides and kind packages, merged
   for d in dialects defs spec docs/dragonfly kinds; do

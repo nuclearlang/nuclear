@@ -734,6 +734,17 @@ impl<'s> Parser<'s> {
             return Some(Member::Ctor(Ctor { span: Span::new(start, self.prev_end()), params, body }));
         }
         if !(self.at_ident() || self.at_punct(Punct::Tilde)) {
+            // `@column(...)` as the last line: a decorator modifies the member right below it
+            if let Some(last) = decorators.last()
+                && matches!(self.peek(), TokenKind::Dedent | TokenKind::Eof)
+            {
+                self.report(
+                    codes::UNEXPECTED_TOKEN,
+                    last.span,
+                    format!("'@{}' has no member below it: a decorator goes on the line right above the field or method it modifies", last.name),
+                );
+                return None;
+            }
             if let TokenKind::Keyword(_) = self.peek() {
                 self.ident(); // reports N0001
             } else {

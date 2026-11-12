@@ -956,3 +956,88 @@ fn a_kind_that_does_not_write_generics_or_interfaces_says_so() {
     // the plain class and the model kind write both
     assert!(codes("Box<T>\n  value: T\n", "flutter").is_empty());
 }
+
+/// A variable named like a method of its module would be written as an assignment to the method (`self.pieces = ...`
+/// in Python): it is N0019, in every language.
+#[test]
+fn a_variable_cannot_take_the_name_of_a_method() {
+    let src = "Planner()\n  run() int\n    pieces = pieces()\n    pieces\n\n  pieces() int\n    1\n\n  ok() int\n    total = pieces()\n    total\n";
+    for d in ["typescript", "dart", "python"] {
+        assert_eq!(codes(src, d), ["N0019"], "{d}");
+    }
+}
+
+/// Python's `??` is a conditional expression (`a if a is not None else b`): inside another conditional it keeps its
+/// parentheses, and so does a conditional in a first branch, or Python groups them the wrong way.
+#[test]
+fn a_coalesce_inside_a_conditional_keeps_its_group_in_python() {
+    let src = "pick(a: string[], m: string?, d: string) string\n  a.length > 0 ? a[0] : m != null ? m ?? d : d\n\nnest(x: int, y: int) int\n  x > 0 ? (y > 0 ? 1 : 2) : 3\n";
+    let py = build(src, "python");
+    has(&py, "a[0] if len(a) > 0 else (m if m is not None else d) if m is not None else d");
+    has(&py, "(1 if y > 0 else 2) if x > 0 else 3");
+    has(&build(src, "typescript"), "a.length > 0 ? a[0] : m != null ? m ?? d : d");
+}
+
+/// An appcomponent method without a body would be generated empty (`...` in Python): N0221, in every platform.
+#[test]
+fn an_appcomponent_method_needs_an_alias_or_a_body() {
+    if without_platforms("an_appcomponent_method_needs_an_alias_or_a_body") {
+        return;
+    }
+    let empty = "appcomponent BooksAppComponent\n  booksOf(author: string) Result<Error, string[]>\n";
+    let alias = "usecase BooksOfAuthor\n  exec(author: string) Result<Error, string[]>\n    Ok([author])\n\nappcomponent BooksAppComponent\n  booksOf() = BooksOfAuthor.exec\n";
+    for d in ["fastapi", "nestjs", "flutter", "react"] {
+        assert!(codes(empty, d).contains(&"N0221"), "{d}: {:?}", codes(empty, d));
+        assert!(!codes(alias, d).contains(&"N0221"), "{d}: {:?}", codes(alias, d));
+    }
+}
+
+/// What an asynchronous call returns is there only once awaited: a member or an index of it without `~` is N0222.
+#[test]
+fn an_async_call_used_without_await_is_an_error() {
+    let src = "Books()\n  all() string[]\n    ~fetchAll()\n\n  fetchAll() string[]\n    []\n\n  count() int\n    books = Books()\n    books.all().length\n\n  right() int\n    books = Books()\n    (~books.all()).length\n";
+    // kept in a variable first: the variable holds the call, not its value
+    let kept = "Books()\n  all() string[]\n    ~fetchAll()\n\n  fetchAll() string[]\n    []\n\n  count() int\n    books = Books()\n    found = books.all()\n    found.length\n\n  right() int\n    books = Books()\n    found = ~books.all()\n    found.length\n";
+    for d in ["typescript", "dart", "python"] {
+        let got = codes(src, d);
+        assert_eq!(got.iter().filter(|c| **c == "N0222").count(), 1, "{d}: {got:?}");
+        let got = codes(kept, d);
+        assert_eq!(got.iter().filter(|c| **c == "N0222").count(), 1, "{d} (kept): {got:?}");
+    }
+}
+
+/// A test keeps its Results: a member or an index of one that is not `value`, `error`, `isOk` or `isErr` is N0114, with
+/// the fix; inside a function that returns a Result the call unwraps by itself and nothing is reported.
+#[test]
+fn a_kept_result_is_read_through_its_value() {
+    if without_platforms("a_kept_result_is_read_through_its_value") {
+        return;
+    }
+    let src = "usecase Find\n  exec(a: string) Result<Error, string[]>\n    Ok([a])\n\ntests FindTest\n  @test(\"finds\")\n  finds() void\n    find = inject<Find>()\n    found = ~find.exec(\"a\")\n    expect(found.length == 1)\n    expect(found[0] == \"a\")\n    expect(found.value.length == 1)\n";
+    let got = codes(src, "fastapi");
+    assert_eq!(got.iter().filter(|c| **c == "N0114").count(), 2, "{got:?}");
+}
+
+/// A member declared twice in one module is N0102 (the second would silently replace the first); a `get`/`set` pair
+/// shares its name.
+#[test]
+fn a_member_is_declared_once() {
+    let twice = "Books()\n  load() int\n    1\n\n  load() int\n    2\n";
+    let pair = "Box()\n  n: int = 0\n  get size() int\n    n\n  set size(v: int)\n    n = v\n";
+    for d in ["typescript", "dart", "python"] {
+        assert_eq!(codes(twice, d).len(), 1, "{d}: {:?}", codes(twice, d));
+    }
+    assert!(codes(pair, "typescript").is_empty(), "{:?}", codes(pair, "typescript"));
+}
+
+
+/// A call to a method hidden by a local of the same name (`prompt(...)` inside `write(prompt: string)`) would call the
+/// local: N0102. A parameter named like its own method (`page(page: int)`) that calls nothing by that name is fine.
+#[test]
+fn a_local_does_not_hide_a_called_method() {
+    let src = "Bench()\n  prompt(name: string) string\n    name\n\n  write(prompt: string) string\n    prompt(\"x\")\n\n  page(page: int) int\n    page + 1\n\n  fine(text: string) string\n    prompt(text)\n";
+    for d in ["typescript", "dart", "python"] {
+        let got = codes(src, d);
+        assert_eq!(got.iter().filter(|c| **c == "N0102").count(), 1, "{d}: {got:?}");
+    }
+}

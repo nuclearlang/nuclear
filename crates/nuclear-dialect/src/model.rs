@@ -77,6 +77,9 @@ pub struct Kind {
     /// Other classes the template writes next to the declaration (`{{name}}Builder`): the program can use
     /// them as if they were declared.
     pub declares: Vec<Template>,
+    /// Members the method template writes next to each method (`purge{{name|pascal}}`, `{{name}}AsLocal`; `name` is
+    /// the method's): the program can call them, and the member check (N0116) knows them.
+    pub method_members: Vec<Template>,
     /// `provide = { template = "inject<{{name}}>()", kinds = ["usecase"] }`: inside this kind, a
     /// declaration of the program of one of those kinds is read with the template (`GetUser.exec()` →
     /// `inject<GetUser>().exec()`).
@@ -85,6 +88,9 @@ pub struct Kind {
     pub keep_results: bool,
     /// Its methods never return their last line (tests).
     pub void_methods: bool,
+    /// Every method has a body or is an alias (`find() = GetOne.exec`): a method without one is N0221 (an appcomponent
+    /// is a facade; an empty method would do nothing).
+    pub needs_body: bool,
 }
 
 /// One member of the standard library as a dialect writes it (`[library.list] add = "{{recv}}.push({{args}})"`).
@@ -399,6 +405,23 @@ pub struct FieldRule {
     pub with: Option<String>,
 }
 
+/// One file a generator writes (`[[generators.<what>]]` of a platform, ADR-0103).
+#[derive(Debug, Clone)]
+pub struct GenPiece {
+    /// The kind of the file: where it goes (`[layout]`).
+    pub kind: String,
+    /// The declaration's name, a template (`{{Name}}Repository`); the file is it in snake_case.
+    pub name: Template,
+    /// Written only when this context value is true (`rest`, `db`, `actions.list`, `screen`).
+    pub when: Option<String>,
+    /// One file per item of this context list (`models`, `actions`): the item's values over the resource's.
+    pub each: Option<String>,
+    /// When the file exists, add the lines of the body it lacks (a facade's aliases) instead of leaving it.
+    pub merge: bool,
+    /// The file.
+    pub template: Template,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Dialect {
     pub name: String,
@@ -493,6 +516,18 @@ pub struct Dialect {
     /// `[decorators.replaced]` of the platform: a removed decorator → what replaces it (`generated` →
     /// `@primary(generated = true)`), for the message of N0309.
     pub replaced_decorators: BTreeMap<String, String>,
+    /// `[layout]` of the platform: kind → the path of its file (`components/{component}/domain/usecases/{file}.nuc`;
+    /// `{component}`, `{screen}`, `{file}` = the name in snake_case). The same for every dialect of the platform.
+    pub layout: BTreeMap<String, String>,
+    /// `[skeletons]` of the platform: kind → the smallest file of the kind (`dragonfly make`), with `{{Name}}`, `{{name}}`,
+    /// `{{component}}`, `{{Component}}`, `{{table}}`.
+    pub skeletons: BTreeMap<String, String>,
+    /// `[[generators.<what>]]` of the platform (ADR-0103): the files `dragonfly gen <what>` writes, in order, each a
+    /// template over the resource (its names, fields, models, actions, source). The same for every dialect.
+    pub generators: BTreeMap<String, Vec<GenPiece>>,
+    /// `[gen]` of the platform: how `dragonfly gen` writes an `Http` connection (`http`, and `http_named` when the app
+    /// already has one: `{{name}}`, `{{baseUrl}}`).
+    pub gen_values: BTreeMap<String, String>,
     pub project: ProjectDef,
     pub architecture: Architecture,
     /// `[docs]`: module prefix → URL of the API reference of a name (`"dart:" = ".../dart-{{library}}/..."`).
@@ -546,7 +581,16 @@ impl Dialect {
                 }))
                 .collect()
         });
-        tables.iter().find_map(|t| t.get(section)?.get(name)?.as_str().map(|s| s.trim().to_string()))
+        // the word's text is Nuclear only (what the agents read); `[underneath.<section>]` of the same file says what
+        // the dialect writes under it (its framework), shown after it
+        tables.iter().find_map(|t| {
+            let text = t.get(section)?.get(name)?.as_str()?.trim().to_string();
+            let under = t.get("underneath").and_then(|u| u.get(section)?.get(name)?.as_str()).map(str::trim);
+            Some(match under {
+                Some(u) if !u.is_empty() => format!("{text}\n\n**Underneath ({}):** {u}", t.get("dialect").and_then(|d| d.as_str()).unwrap_or(&self.name)),
+                _ => text,
+            })
+        })
     }
 
     /// The names documented in a section of the docs.toml files of the chain, sorted.
@@ -1236,6 +1280,49 @@ fn check_platform(d: &mut Dialect, platform: &str, file: Option<&Path>, report: 
     let kinds: BTreeSet<String> =
         d.kinds.iter().filter(|(_, e)| e.origin.dialect != language).map(|(k, _)| k.clone()).collect();
     let want = list("kinds");
+    for (kind, path) in table.get("layout").and_then(|v| v.as_table()).into_iter().flatten() {
+        if !want.contains(kind) {
+            err(report, format!("{shown}: [layout] names '{kind}', which is not a kind of platform '{platform}'"));
+        }
+        d.layout.insert(kind.clone(), path.as_str().unwrap_or_default().to_string());
+    }
+    for (key, v) in table.get("gen").and_then(|v| v.as_table()).into_iter().flatten() {
+        d.gen_values.insert(key.clone(), v.as_str().unwrap_or_default().to_string());
+    }
+    for (what, pieces) in table.get("generators").and_then(|v| v.as_table()).into_iter().flatten() {
+        for piece in pieces.as_array().into_iter().flatten() {
+            let get = |k: &str| piece.get(k).and_then(|v| v.as_str()).map(str::to_string);
+            let kind = get("kind").unwrap_or_default();
+            if !d.layout.contains_key(&kind) {
+                err(report, format!("{shown}: [[generators.{what}]] writes a '{kind}', which has no place in [layout]"));
+                continue;
+            }
+            let mut compile = |src: &str, field: &str| match Template::compile(src) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    err(report, format!("{shown}: [[generators.{what}]] {kind} {field}: {}", e.message));
+                    None
+                }
+            };
+            let (Some(name), Some(template)) = (compile(&get("name").unwrap_or_default(), "name"), compile(get("template").unwrap_or_default().trim_start(), "template")) else {
+                continue;
+            };
+            d.generators.entry(what.clone()).or_default().push(GenPiece {
+                kind,
+                name,
+                when: get("when"),
+                each: get("each"),
+                merge: piece.get("merge").and_then(|v| v.as_bool()).unwrap_or(false),
+                template,
+            });
+        }
+    }
+    for (kind, text) in table.get("skeletons").and_then(|v| v.as_table()).into_iter().flatten() {
+        if !d.layout.contains_key(kind) {
+            err(report, format!("{shown}: [skeletons] names '{kind}', which has no place in [layout]"));
+        }
+        d.skeletons.insert(kind.clone(), text.as_str().unwrap_or_default().trim_start().to_string());
+    }
     let missing = join(want.difference(&kinds).collect());
     if !missing.is_empty() {
         err(report, format!("dialect '{}' misses kinds of platform '{platform}': {missing}", d.name));
@@ -1748,9 +1835,11 @@ impl Layer<'_> {
             "file_header",
             "alias_via",
             "declares",
+            "method_members",
             "provide",
             "results",
             "void_methods",
+            "needs_body",
         ];
         for (k, v) in t {
             let Some(tb) = v.as_table() else { continue };
@@ -1824,6 +1913,10 @@ impl Layer<'_> {
                     .iter()
                     .filter_map(|t| Template::compile(t).ok())
                     .collect(),
+                method_members: Self::string_list(tb.get("method_members"))
+                    .iter()
+                    .filter_map(|t| Template::compile(t).ok())
+                    .collect(),
                 provide: match tb.get("provide").and_then(|p| p.as_table()) {
                     Some(pt) => match pt.get("template") {
                         Some(tv) => self
@@ -1835,6 +1928,7 @@ impl Layer<'_> {
                 },
                 keep_results: tb.get("results").and_then(|x| x.as_str()) == Some("keep"),
                 void_methods: tb.get("void_methods").and_then(|x| x.as_bool()).unwrap_or(false),
+                needs_body: tb.get("needs_body").and_then(|x| x.as_bool()).unwrap_or(false),
             };
             if self.may_define(&self.d.kinds.clone(), "kinds", k, file) {
                 let origin = self.origin(file, &["kinds"], k);

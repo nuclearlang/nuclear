@@ -45,7 +45,8 @@ Roots are searched in this order, and the first one that has the package wins:
 3. the cache of packages generated for projects: `$XDG_CACHE_HOME/nuclearlang/defs` or
    `~/.cache/nuclearlang/defs` (`nuclear_dialect::defs_cache_dir`), shared by every project.
 
-A project keeps its own packages (or a different version of an included one) in `<project>/defs/`.
+A project keeps its own packages (or a different version of an included one) in
+`<project>/defs/<language>/<name>/<version>/`; `nuclear build|check` and the LSP load every package found there.
 Packages a project adds are loaded on top of the dialect's: the project lists them in
 `build/defs.lock` ([projects.md](projects.md) §3.2) and the tools add them with `Loader::add_defs`, which
 marks them `from_project` (so they do not count as packages of the dialect).
@@ -158,7 +159,7 @@ One declaration per line:
 | `params` | `name`, `type`, `named` (goes between `{ }`), `optional`, `default` (written in the target) |
 | `values` | Values of an enum |
 | `type` | Type of a variable or the aliased type (`typedef`) |
-| `returns`, `params` | Signature of a function |
+| `returns`, `params` | Signature of a function; `returns` types the value of a call (`env("PORT")` is a `string`, so `env("PORT").toInt()` is the library's `toInt`) |
 | `doc`, `deprecated` | First paragraph of the documentation; the declaration is deprecated |
 
 ## 4. What the transpiler does with them

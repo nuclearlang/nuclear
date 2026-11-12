@@ -24,7 +24,10 @@ It says only what changes from TypeScript/Dart. Do not load the full spec (`nucl
 
 ## 2. Work cycle
 
-1. Dragonfly: create each piece with its generator, so it lands in the right folder with the right kind:
+1. Dragonfly: generate a resource's finished code first (models, repository, a use case per action, the facade,
+   the controller or the screen, tests): `dragonfly gen inspect`, then `dragonfly gen resource <component> <Name>
+   --from-json <url|file> | --from-spec <spec.md> | --fields "id:int name:string"` (ADR-0103). Write by hand only
+   what is left. Create each other piece with its generator, so it lands in the right folder with the right kind:
    `dragonfly make component|screen|usecase|repository|model|event|guard|widget|page|test ...` (`dragonfly help`).
 2. Write the code following the sheet. Copy the style of the project's existing `.nuc` files.
 3. Check until clean, and fix exactly what each error says (most carry a `fix`):
@@ -41,7 +44,7 @@ It says only what changes from TypeScript/Dart. Do not load the full spec (`nucl
 - A class, constructor, argument or member of Flutter, Dart or a package:
   `nuclear defs show <Name> --dialect flutter` (or `<Name.member>`); `nuclear defs search <text> --dialect flutter`.
 - A kind, decorator or header word of the dialect (what it generates, its rules, an example):
-  `nuclear help <word> --dialect <d>` (`repository`, `@screen`...); every word: `nuclear help words --dialect <d>`.
+  `nuclear help <word> --dialect <d>` (`repository`, `@screen`...); every word: `nuclear help words --dialect <d>`; where a kind's file goes: `nuclear help layout --dialect <d>`.
 - A language or framework topic: `nuclear help` lists them (`results`, `flutter`, `dragonfly`, `tutorial`...).
 - A runtime error of the app: `dragonfly explain` (reads the error on stdin and points to the `.nuc` line).
 

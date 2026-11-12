@@ -290,13 +290,13 @@ fn named_or_first(args: Option<&[Arg]>, name: &str) -> Option<String> {
 }
 
 /// Doc comments: the own-line comments right above a position.
-struct Lines<'a> {
+pub(crate) struct Lines<'a> {
     starts: Vec<usize>,
     comments: &'a [Comment],
 }
 
 impl<'a> Lines<'a> {
-    fn new(source: &str, comments: &'a [Comment]) -> Self {
+    pub(crate) fn new(source: &str, comments: &'a [Comment]) -> Self {
         let mut starts = vec![0];
         starts.extend(source.match_indices('\n').map(|(i, _)| i + 1));
         Lines { starts, comments }
@@ -306,7 +306,7 @@ impl<'a> Lines<'a> {
         self.starts.partition_point(|&s| s <= pos)
     }
 
-    fn doc(&self, pos: usize) -> Option<String> {
+    pub(crate) fn doc(&self, pos: usize) -> Option<String> {
         let mut want = self.line(pos);
         let mut texts = Vec::new();
         for c in self.comments.iter().rev() {

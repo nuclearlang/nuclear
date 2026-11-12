@@ -19,5 +19,6 @@ records how the work is split, not the final rules.
 | [004-backend-parity](004-backend-parity/plan.md) | step 4 of the competitiveness plan; plan with examples, not started (ADR first for the data parts) |
 | [005-language-1-0](005-language-1-0/plan.md) | step 6 of the competitiveness plan; plan with examples, not started |
 | [006-public-repositories](006-public-repositories/plan.md) | step 1 of the competitiveness plan: the organization `nuclearlang` and the split into public repositories; not started |
+| [007-lora-nuclear-coder](007-lora-nuclear-coder/plan.md) | asked by the user 2026-11-11: what a LoRA of the local coder needs; plan, not started (dataset source, base model license and GPU to decide) |
 
 Status and progress live in `STATUS.md`; this table only points to the folders.

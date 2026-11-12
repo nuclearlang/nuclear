@@ -256,6 +256,8 @@ pub struct Emitter<'a> {
     last_method: Option<Value>,
     /// Type parameters of the declaration being written (`T` of `Page<T>`): `tinfo.generic`.
     type_params: Vec<String>,
+    /// Every generic parameter named so far in the file (`T` of `pick<T>()`): never an unknown class (N0220).
+    generic_names: HashSet<String>,
     pub(crate) summaries: Vec<DeclSummary>,
     pub diags: Vec<Diagnostic>,
     /// Line map of the last `file`: (output line, source offset), both from 1 and 0.
@@ -434,6 +436,7 @@ impl<'a> Emitter<'a> {
             extra_decls: Vec::new(),
             last_method: None,
             type_params: Vec::new(),
+            generic_names: HashSet::new(),
             summaries: Vec::new(),
             diags: Vec::new(),
             marks: Vec::new(),
@@ -954,7 +957,21 @@ impl<'a> Emitter<'a> {
                                         sig.ret = None;
                                     }
                                     method_sigs.insert(md.name.name.clone(), sig);
-                                    member_names.insert(md.name.name.clone());
+                                    // a `get`/`set` pair shares its name
+                                    let accessor = md.words.iter().any(|w| w.name == "get" || w.name == "set");
+                                    if !member_names.insert(md.name.name.clone()) && !accessor {
+                                        self.error(
+                                            codes::DUPLICATE_DECL,
+                                            md.name.span,
+                                            format!("'{}' is declared twice in '{}'; each member is declared once", md.name.name, d.name.name),
+                                        );
+                                    }
+                                    if let DeclKind::Kind(k) = &kind
+                                        && let Some(kd) = self.d.kinds.get(k)
+                                    {
+                                        let ctx = Ctx::new().set("name", &md.name.name).into_value();
+                                        member_names.extend(kd.value.method_members.iter().map(|t| t.render(&ctx)));
+                                    }
                                     // `list() = ListTasks.exec`: resolved when its type is needed
                                     if md.ret.is_none()
                                         && md.params.as_ref().is_none_or(|p| p.list.is_empty())
@@ -966,7 +983,13 @@ impl<'a> Emitter<'a> {
                                     }
                                 }
                                 Member::Field(f) => {
-                                    member_names.insert(f.name.name.clone());
+                                    if !member_names.insert(f.name.name.clone()) {
+                                        self.error(
+                                            codes::DUPLICATE_DECL,
+                                            f.name.span,
+                                            format!("'{}' is declared twice in '{}'; each member is declared once", f.name.name, d.name.name),
+                                        );
+                                    }
                                     if let Some(t) = &f.ty {
                                         field_types.insert(f.name.name.clone(), t.clone());
                                     }
@@ -1335,30 +1358,57 @@ impl<'a> Emitter<'a> {
         out
     }
 
-    /// N0116: a member of a value typed with a closed declaration of the project (every member known: no base, no
-    /// class the kind inherits, nothing the template declares) must exist. A model generated from a contract that
-    /// the backend changed fails here, with the field's name.
+    /// N0116: a member of a value typed with a closed declaration of the project must exist. Closed: every member is
+    /// known — its own, those of its project bases, and those of the runtime classes it or its kind inherits when the
+    /// type definitions list them (`repository` → `Repository`, `Query`); nothing the kind's template declares. A model
+    /// generated from a contract that the backend changed fails here, with the field's name.
     fn check_project_member(&mut self, object: &Expr, name: &Ident) {
         let Some(t) = self.static_type(object) else { return };
         let TypeKind::Named { name: tn, .. } = &strip_nullable(t).kind else { return };
         let Some(info) = self.decl_info(tn) else { return };
-        if !matches!(info.kind, DeclKind::Class | DeclKind::Kind(_)) || !info.bases.is_empty() || info.members.contains(&name.name) {
+        if !matches!(info.kind, DeclKind::Class | DeclKind::Kind(_)) || info.members.contains(&name.name) {
             return;
         }
-        if let DeclKind::Kind(k) = &info.kind
-            && self.d.kinds.get(k).is_some_and(|e| !e.value.declares.is_empty())
-        {
+        let Some(all) = self.closed_members(tn) else { return };
+        if all.contains(&name.name) {
             return;
         }
-        let mut members: Vec<&String> = info.members.iter().collect();
+        // a dialect that renames to snake_case shows the runtime's members as the `.nuc` writes them
+        let shown = |m: &str| if self.d.options.snake_case_names { crate::naming::camel(m) } else { m.to_string() };
+        let mut members: Vec<String> = all.iter().map(|m| shown(m)).collect();
         members.sort();
-        let hint = closest(&name.name, members.iter().map(|m| m.as_str())).map(|c| format!("did you mean '{c}'? ")).unwrap_or_default();
-        let msg = format!(
-            "'{tn}' has no member '{}'; {hint}its members: {}",
-            name.name,
-            members.iter().map(|m| m.as_str()).collect::<Vec<_>>().join(", ")
-        );
+        members.dedup();
+        let wanted = shown(&name.name);
+        let hint = closest(&wanted, members.iter().map(|m| m.as_str())).map(|c| format!("did you mean '{c}'? ")).unwrap_or_default();
+        let msg = format!("'{tn}' has no member '{wanted}'; {hint}its members: {}", members.join(", "));
         self.error(codes::UNKNOWN_MEMBER, name.span, msg);
+    }
+
+    /// Every member of `name` and its bases, when all of them are known (project declarations, or classes of the type
+    /// definitions with their supers); `None` as soon as one is not, or a kind's template declares members.
+    fn closed_members(&self, name: &str) -> Option<HashSet<String>> {
+        let mut out = HashSet::new();
+        let mut pending = vec![name.to_string()];
+        let mut seen = HashSet::new();
+        while let Some(n) = pending.pop() {
+            if !seen.insert(n.clone()) {
+                continue;
+            }
+            if let Some(info) = self.decl_info(&n) {
+                if let DeclKind::Kind(k) = &info.kind
+                    && self.d.kinds.get(k).is_some_and(|e| !e.value.declares.is_empty())
+                {
+                    return None;
+                }
+                out.extend(info.members.iter().cloned());
+                pending.extend(info.bases.iter().cloned());
+            } else {
+                let c = self.d.defs.get(&n)?;
+                out.extend(c.members.iter().cloned());
+                pending.extend(c.supers.iter().cloned());
+            }
+        }
+        Some(out)
     }
 
     /// The names the project declares that `module` exports too: a dialect with a `hide` clause keeps the project's.
@@ -1394,6 +1444,7 @@ impl<'a> Emitter<'a> {
         if g.is_empty() {
             return String::new();
         }
+        self.generic_names.extend(g.iter().map(|n| n.name.clone()));
         let mut names = Vec::new();
         for (i, name) in g.iter().enumerate() {
             let bound = bounds.get(i).cloned().flatten().map(|t| self.ty(&t));
@@ -2302,6 +2353,16 @@ impl<'a> Emitter<'a> {
                         ),
                     );
                 }
+                if k.needs_body && matches!(md.body, Body::None) {
+                    self.error(
+                        codes::KIND_METHOD_BODY,
+                        md.name.span,
+                        format!(
+                            "'{}' of '{kname} {}' has no body: write it as an alias of a use case (`{}() = UseCase.exec`) or give it one",
+                            md.name.name, d.name.name, md.name.name
+                        ),
+                    );
+                }
                 if let Some(want) = &k.returns {
                     let ok = matches!(&md.ret, Some(Type { kind: TypeKind::Named { name, .. }, .. }) if name == want);
                     if !ok {
@@ -3034,6 +3095,18 @@ impl<'a> Emitter<'a> {
     fn decl_info(&self, name: &str) -> Option<&DeclInfo> {
         let out = self.decl_names.get(name).cloned().unwrap_or_else(|| name.to_string());
         self.decls.get(&out)
+    }
+
+    /// The return type of a top-level function of the type definitions (`api.json` `returns`, in Nuclear notation),
+    /// looked up by its Nuclear name and, for a snake_case dialect, by the name the target gives it.
+    fn def_function_ret(&self, name: &str) -> Option<Type> {
+        let (_, d) = self.d.typedefs.get(name).or_else(|| {
+            self.d.options.snake_case_names.then(|| self.d.typedefs.get(&crate::naming::snake(name))).flatten()
+        })?;
+        if d.kind != "function" {
+            return None;
+        }
+        nuclear_syntax::parse_type(d.returns.as_deref()?)
     }
 
     /// Signature of a method of a module of this file, looked up in the module and its bases.
@@ -3877,6 +3950,18 @@ impl<'a> Emitter<'a> {
     }
 
     fn assign(&mut self, a: &Assign) -> String {
+        // `pieces = ~pieces(raw)` inside the module that has a method `pieces`: a method is not a variable
+        if let ExprKind::Name(n) = &a.target.kind
+            && self.lookup_local(n).is_none()
+            && let Some(m) = self.module.as_ref().map(|m| m.name.clone())
+            && self.decl_info(&m).is_some_and(|i| i.methods.contains_key(n))
+        {
+            self.error(
+                codes::BAD_ASSIGN_TARGET,
+                a.target.span,
+                format!("'{n}' is a method of '{m}': it cannot be assigned; give the variable another name"),
+            );
+        }
         if a.op == AssignOp::Set
             && let Some(code) =
                 self.assign_branching(a).or_else(|| self.destructure(a)).or_else(|| self.cascade_statements(a))
@@ -3901,6 +3986,11 @@ impl<'a> Emitter<'a> {
             let value = self.expr(&a.value).0;
             self.temp_hint = None;
             let known = a.ty.clone().or_else(|| match &a.value.kind {
+                // a kind that keeps its Results (tests) holds the Result itself; elsewhere it is unwrapped
+                _ if value_result.is_some() && self.cur_kind.is_some_and(|k| k.keep_results) => value_result.as_ref().and_then(|r| {
+                    let (ok, err) = (r.ok.clone()?, r.err.clone().unwrap_or_else(|| named_type("Error", Vec::new(), a.span)));
+                    Some(named_type("Result", vec![err, ok], a.span))
+                }),
                 _ if value_result.is_some() => value_result.as_ref().and_then(|r| r.ok.clone()),
                 ExprKind::Call { callee, type_args, .. } => match &callee.kind {
                     ExprKind::Name(c) if is_pascal(c) && self.decl_info(c).is_some() => {
@@ -4353,7 +4443,8 @@ impl<'a> Emitter<'a> {
                 let c = self.wrap(c, P_TERNARY + 1);
                 self.hoist_blocked += 1;
                 let t = self.expr(then);
-                let t = self.wrap(t, P_TERNARY);
+                // a conditional in the first branch keeps its parentheses: in Python's `t if c else o` it would join `o`
+                let t = self.wrap(t, P_TERNARY + 1);
                 let o = self.expr(otherwise);
                 self.hoist_blocked -= 1;
                 let o = self.wrap(o, P_TERNARY);
@@ -4369,6 +4460,8 @@ impl<'a> Emitter<'a> {
                 (text, prec)
             }
             ExprKind::Member { object, name, optional } => {
+                self.check_awaited(object);
+                self.check_result_member(object, name);
                 let callee = std::mem::take(&mut self.callee_member);
                 if !*optional && !callee && let Some(text) = self.library_access(object, name, None, &[], e.span) {
                     return (text, P_POSTFIX);
@@ -4386,6 +4479,8 @@ impl<'a> Emitter<'a> {
                 (self.tpl(key, Ctx::new().set("object", o).set("name", &name.name), e.span), P_POSTFIX)
             }
             ExprKind::Index { object, index } => {
+                self.check_awaited(object);
+                self.check_result_index(object);
                 // `m[k]` on a map is `V?` (null when absent): a dialect whose index throws writes a lookup instead
                 let (is_map, is_object) = self.map_kind(object);
                 let is_map = (is_map || is_object) && !std::mem::take(&mut self.assign_target);
@@ -4456,7 +4551,16 @@ impl<'a> Emitter<'a> {
         let prec = op.precedence();
         // the right side of and, or, ?? may not run
         let lazy = u32::from(matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Coalesce));
-        let Some(t) = self.operator(op.key()) else {
+        // `f(x) ?? d`, `m[k] ?? d`: a target whose `coalesce` writes the left side twice evaluates it once instead
+        let key = if op == BinaryOp::Coalesce && !is_plain_path(left) && self.operator("coalesce_once").is_some() {
+            "coalesce_once"
+        } else {
+            op.key()
+        };
+        if let Some(h) = self.d.syntax_helpers.get(key) {
+            self.helpers.entry(format!("operators.{key}")).or_insert_with(|| h.render(&Value::Map(BTreeMap::new())));
+        }
+        let Some(t) = self.operator(key) else {
             if self.missing_reported.insert(format!("operators.{}", op.key())) {
                 self.error(
                     codes::MISSING_TEMPLATE,
@@ -4513,8 +4617,23 @@ impl<'a> Emitter<'a> {
             // a comparison with `null` (Python: `x is None`)
             .flag("null", matches!(left.kind, ExprKind::Null) || matches!(right.kind, ExprKind::Null));
         let text = t.render(&ctx.into_value());
-        let p = if is_atomic(&text) { P_POSTFIX } else { prec };
+        let p = if is_atomic(&text) {
+            P_POSTFIX
+        } else if self.conditional_form(t) {
+            P_TERNARY
+        } else {
+            prec
+        };
         (text, p)
+    }
+
+    /// An operator written in the shape of the dialect's conditional expression (Python's `??`: `a if a is not None
+    /// else b`) binds like it: it needs parentheses wherever a conditional does.
+    fn conditional_form(&self, t: &Template) -> bool {
+        let Some(ternary) = self.d.syntax("ternary") else { return false };
+        let shape = ternary.literals();
+        let mine = t.literals().join(" ");
+        shape.len() >= 2 && shape.iter().all(|w| mine.contains(w.as_str()))
     }
 
     /// A member's name as the source writes it (`trimStart`), when naming rewrote it for the target
@@ -4898,6 +5017,10 @@ impl<'a> Emitter<'a> {
                         return (self.decl_info(c).is_some() || self.d.defs.contains_key(c.as_str()))
                             .then(|| named_type(c, Vec::new(), sp));
                     }
+                    // `env("PORT")`: a function of the type definitions returns what they declare
+                    if self.decl_info(c).is_none() && !self.module.as_ref().is_some_and(|m| m.members.contains(c)) {
+                        return self.def_function_ret(c);
+                    }
                     let sig = match self.decl_info(c) {
                         Some(info) => info.sig.clone(),
                         None => {
@@ -4994,6 +5117,91 @@ impl<'a> Emitter<'a> {
             },
             _ => None,
         }
+    }
+
+    /// N0222: a member or an index of what an asynchronous call returns, without `~` (`books.exec(a).length`): the value
+    /// is not there yet, so the target reads a promise or a coroutine.
+    fn check_awaited(&mut self, object: &Expr) {
+        // `found = books.all()` then `found.length`: the variable holds the call not awaited
+        if let ExprKind::Name(n) = &object.kind
+            && self.lookup_local(n).is_some()
+            && let Some(t) = self.static_type(object)
+            && let TypeKind::Named { name, args } = &strip_nullable(t).kind
+            && name == "Future"
+            && args.len() == 1
+        {
+            self.diags.push(Diagnostic::error(
+                codes::NOT_AWAITED,
+                object.span,
+                format!("'{n}' holds an asynchronous call that was not awaited: its value is there only once awaited; write `{n} = ~...` where it is assigned"),
+            ));
+            return;
+        }
+        let ExprKind::Call { callee, .. } = &object.kind else { return };
+        let (sig, shown) = match &callee.kind {
+            ExprKind::Member { object: recv, name, .. } => {
+                let Some(t) = self.static_type(recv) else { return };
+                let TypeKind::Named { name: tn, .. } = &strip_nullable(t).kind else { return };
+                let Some(info) = self.decl_info(tn) else { return };
+                (self.sig_of_method(info, &name.name), name.name.clone())
+            }
+            ExprKind::Name(f) => (self.decl_info(f).map(|i| i.sig.clone()), f.clone()),
+            _ => return,
+        };
+        if sig.is_some_and(|s| s.is_async) {
+            let call = self.src_text_any(object.span);
+            self.diags.push(
+                Diagnostic::error(
+                    codes::NOT_AWAITED,
+                    object.span,
+                    format!("'{shown}' is asynchronous: its value is there only once awaited; write `(~{call})`"),
+                )
+                .with_fix(object.span, format!("(~{call})")),
+            );
+        }
+    }
+
+    /// N0114: a `Result` has `value`, `error`, `isOk` and `isErr` only (`found.length` of a `Result<E, T[]>`).
+    fn check_result_member(&mut self, object: &Expr, name: &Ident) {
+        // inside a function that returns a Result a call's Result unwraps by itself (`findUser(id).name`)
+        let unwraps = self.fn_ctx.last().is_some_and(|c| c.result.is_some()) && !self.cur_kind.is_some_and(|k| k.keep_results);
+        if unwraps && matches!(object.kind, ExprKind::Call { .. } | ExprKind::Unary { op: UnaryOp::Await, .. }) {
+            return;
+        }
+        let Some(t) = self.static_type(object) else { return };
+        let TypeKind::Named { name: tn, args } = &strip_nullable(t).kind else { return };
+        if tn != "Result" || args.len() != 2 || matches!(self.src_name(name).as_str(), "value" | "error" | "isOk" | "isErr") {
+            return;
+        }
+        let shown = self.src_name(name);
+        let recv = self.src_text_any(object.span);
+        let fix = format!("{recv}.value.{shown}");
+        self.diags.push(
+            Diagnostic::error(
+                codes::LIBRARY_NAME,
+                name.span,
+                format!("'{shown}' is not a member of a Result (it has value, error, isOk and isErr): the value is `{fix}`"),
+            )
+            .with_fix(Span::new(object.span.start, name.span.end), fix),
+        );
+    }
+
+    /// N0114: an index of a kept `Result` (`found[0]` of a `Result<E, T[]>`): the list is its `value`.
+    fn check_result_index(&mut self, object: &Expr) {
+        let Some(t) = self.static_type(object) else { return };
+        if !matches!(&strip_nullable(t).kind, TypeKind::Named { name, args } if name == "Result" && args.len() == 2) {
+            return;
+        }
+        let recv = self.src_text_any(object.span);
+        self.diags.push(
+            Diagnostic::error(codes::LIBRARY_NAME, object.span, format!("a Result has no index: the list is `{recv}.value`"))
+                .with_fix(object.span, format!("{recv}.value")),
+        );
+    }
+
+    /// The source text a span covers (any text, unlike `src_text`).
+    fn src_text_any(&self, span: Span) -> String {
+        self.source.get(span.start..span.end).unwrap_or("...").to_string()
     }
 
     /// The signature of a method of a declaration; an alias (`list() = ListTasks.exec`) takes its target's.
@@ -5491,6 +5699,32 @@ impl<'a> Emitter<'a> {
         };
         if construct && let ExprKind::Name(n) = &callee.kind {
             self.check_construct(n, args, callee.span);
+        }
+        // `prompt(...)` inside `write(prompt: string)` of a module with a method `prompt`: the call reaches the local
+        // (the parameter), not the method it hides
+        if let ExprKind::Name(n) = &callee.kind
+            && self.lookup_local(n).is_some()
+            && let Some(m) = self.module.as_ref().map(|m| m.name.clone())
+            && self.decl_info(&m).is_some_and(|i| i.methods.contains_key(n))
+            && !matches!(self.static_type(callee).map(|t| t.kind), Some(TypeKind::Func { .. }))
+        {
+            self.error(
+                codes::DUPLICATE_DECL,
+                callee.span,
+                format!("'{n}' here is a local (a parameter or a variable) that hides the method '{n}' of '{m}': give the local another name"),
+            );
+        }
+        // `inject<Undeclared>()`: a type argument names a class too
+        for t in type_args {
+            if let TypeKind::Named { name, args: targs } = &t.kind
+                && targs.is_empty()
+                && is_pascal(name)
+                && !name.contains('.')
+                && !self.type_params.contains(name)
+                && !self.generic_names.contains(name)
+            {
+                self.check_construct(name, &[], t.span);
+            }
         }
         // `res.text()`: the callee is a method of the target, not the library's `text` property
         self.callee_member = matches!(callee.kind, ExprKind::Member { .. });
@@ -6239,6 +6473,16 @@ fn route_path(pieces: &[StrPiece], pattern: &str) -> Option<String> {
 /// `generic_list` of templates: one entry (`name`) per type parameter.
 fn generic_list(generics: &[Ident]) -> Value {
     Value::List(generics.iter().map(|g| Ctx::new().set("name", &g.name).into_value()).collect())
+}
+
+/// A name or a chain of members of names (`a`, `this.a.b`): reading it twice costs nothing and a type checker narrows
+/// it (`a if a is not None else b`); a call or an index is not one.
+fn is_plain_path(e: &Expr) -> bool {
+    match &e.kind {
+        ExprKind::Name(_) | ExprKind::This => true,
+        ExprKind::Member { object, .. } => is_plain_path(object),
+        _ => false,
+    }
 }
 
 #[cfg(test)]

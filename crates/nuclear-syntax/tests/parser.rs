@@ -313,3 +313,10 @@ fn examples_parse_without_errors() {
         assert!(parsed.diagnostics.is_empty(), "{}: {:#?}", f.display(), parsed.diagnostics);
     }
 }
+
+#[test]
+fn a_decorator_after_the_last_member_says_where_it_goes() {
+    let parsed = parse("Reader()\n  email: string\n  @column(length = 120)\n");
+    assert_eq!(parsed.diagnostics.len(), 1, "{:#?}", parsed.diagnostics);
+    assert!(parsed.diagnostics[0].message.contains("'@column' has no member below it"), "{}", parsed.diagnostics[0].message);
+}

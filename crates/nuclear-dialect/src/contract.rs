@@ -354,6 +354,11 @@ pub const OPERATORS: &[TemplateSpec] = &[
     t("shr", &["left", "right"], ">>"),
     t("ushr", &["left", "right"], ">>> (unsigned shift)"),
     t("coalesce", &["left", "right"], "??"),
+    t(
+        "coalesce_once",
+        &["left", "right", "left_arg", "right_arg"],
+        "`??` whose left side is not a plain name or member chain (a call, a map read): optional, for a target whose `coalesce` writes the left side twice (Python); usually a `{ template, helper }`",
+    ),
     t("in", &["left", "right", "map", "set", "object"], "`x in list`; `map`: the right side is a Map object, `set`: a Set, `object`: a map literal or `<K, V>` (`key in map`)"),
     t("range", &["left", "right"], "`a..b` used as a value (end excluded)"),
 ];

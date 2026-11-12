@@ -8,6 +8,7 @@ mod analysis;
 mod emit;
 mod naming;
 pub mod contract;
+pub mod map;
 pub mod project;
 
 use nuclear_diag::Diagnostic;
@@ -30,11 +31,12 @@ pub fn transpile(src: &str, dialect: &Dialect) -> Output {
         return Output { code: String::new(), diagnostics, lines: Vec::new() };
     }
     let mut file = parsed.file;
-    naming::apply(&mut file, dialect);
+    let names = naming::apply(&mut file, dialect);
     diagnostics.extend(alias::expand(&mut file, &Default::default(), &|d| alias_via(dialect, d)));
     let mut emitter = emit::Emitter::new(dialect, file.comments.clone()).with_source(src);
     let code = emitter.file(&file);
     diagnostics.append(&mut emitter.diags);
+    naming::restore(&mut diagnostics, &names);
     diagnostics.sort_by_key(|d| d.span.start);
     Output { code, diagnostics, lines: line_map(src, &emitter.marks) }
 }

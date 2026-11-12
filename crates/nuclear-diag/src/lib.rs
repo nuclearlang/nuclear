@@ -225,7 +225,7 @@ pub mod codes {
     pub const UNKNOWN_MEMBER: Code = Code {
         id: "N0116",
         title: "unknown member of a declaration of the project",
-        explanation: "The value's type is a declaration of this project whose members are all known (its fields, methods and constructor parameters; no base outside the project), and it has no member with that name. A model generated from a contract changes when the backend changes: rebuild and read the generated file.",
+        explanation: "The value's type is a declaration of this project whose members are all known (its fields, methods and constructor parameters, its project bases, and the runtime classes it or its kind inherits when the type definitions list their members), and it has no member with that name. A model generated from a contract changes when the backend changes: rebuild and read the generated file.",
     };
     pub const KIND_PACKAGE: Code = Code {
         id: "N0306",
@@ -322,6 +322,16 @@ pub mod codes {
         title: "unknown class",
         explanation: "A PascalCase call that is not declared in the project, imported, nor in the dialect's type definitions. `nuclear defs search <text> --dialect <d>` finds the real name.",
     };
+    pub const KIND_METHOD_BODY: Code = Code {
+        id: "N0221",
+        title: "a method of this kind needs a body",
+        explanation: "The kind's methods do something ([kinds.<k>] needs_body): an appcomponent method is an alias of a use case (`find() = GetOne.exec`) or has a body. A method without one would be generated empty.",
+    };
+    pub const NOT_AWAITED: Code = Code {
+        id: "N0222",
+        title: "an asynchronous call used without `~`",
+        explanation: "A member or an index of what an asynchronous call returns (`books.exec(a).length`) reads a value that is not there yet: await the call, `(~books.exec(a)).length`.",
+    };
     pub const ARCH_CALLER: Code = Code {
         id: "N0301",
         title: "architecture: this declaration cannot use that one",
@@ -410,6 +420,8 @@ pub mod codes {
         SHORTCUT_IS_KEYWORD,
         KIND_METHOD_NOT_ALLOWED,
         KIND_RETURN_TYPE,
+        KIND_METHOD_BODY,
+        NOT_AWAITED,
         DECORATOR_ARGS,
         KIND_IGNORES,
         UNKNOWN_NAMED_ARG,

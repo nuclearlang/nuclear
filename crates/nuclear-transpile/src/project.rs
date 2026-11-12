@@ -348,6 +348,8 @@ pub fn metadata(root: &Path, manifest: &Manifest, dialect: &Dialect) -> serde_js
 pub fn write_metadata(root: &Path, manifest: &Manifest, dialect: &Dialect) -> std::io::Result<()> {
     // the contract of the project (and its OpenAPI document) go next to the card (ADR-0098)
     crate::contract::write(root, manifest, dialect)?;
+    // what an agent reads before it writes: every declaration with its description (ADR-0102)
+    crate::map::write(root, manifest, dialect)?;
     let text = serde_json::to_string_pretty(&metadata(root, manifest, dialect))? + "\n";
     let path = root.join(METADATA_FILE);
     if std::fs::read_to_string(&path).ok().as_deref() == Some(text.as_str()) {
@@ -507,7 +509,8 @@ fn item_span(item: &Item) -> Span {
     }
 }
 
-/// Every `.nuc` under `root`, sorted, skipping hidden folders and `skip` (the output folder).
+/// Every `.nuc` under `root`, sorted, skipping hidden folders, `skip` (the output folder) and a folder that is a
+/// repository of its own (it has a `.git`: another project, like a knowledge base kept inside this one).
 pub fn sources(root: &Path, skip: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut pending = vec![root.to_path_buf()];
@@ -516,7 +519,7 @@ pub fn sources(root: &Path, skip: &Path) -> Vec<PathBuf> {
         for e in entries.flatten() {
             let p = e.path();
             let hidden = p.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.'));
-            if hidden || p == skip {
+            if hidden || p == skip || (p.is_dir() && p.join(".git").exists()) {
                 continue;
             }
             if p.is_dir() {
@@ -583,6 +586,8 @@ pub fn build(root: &Path, manifest: &Manifest, dialect: &Dialect) -> ProjectOutp
     // the contracts the manifest declares become `contracts/<name>/*.nuc` before the sources are read
     let contract_diags = crate::contract::sync(root, dialect);
     let mut parsed: Vec<Parsed> = Vec::new();
+    // output name → source name of every file: a message may name a member declared in another file
+    let mut names = HashMap::new();
     let mut config_file = None;
     for rel in sources(root, &out_dir) {
         let source = std::fs::read_to_string(root.join(&rel)).unwrap_or_default();
@@ -601,7 +606,7 @@ pub fn build(root: &Path, manifest: &Manifest, dialect: &Dialect) -> ProjectOutp
             continue;
         }
         let mut p = nuclear_syntax::parse(&source);
-        crate::naming::apply(&mut p.file, dialect);
+        names.extend(crate::naming::apply(&mut p.file, dialect));
         let ok = !p.diagnostics.iter().any(Diagnostic::is_error);
         let path = stem_path(&rel);
         parsed.push(Parsed {
@@ -719,6 +724,7 @@ pub fn build(root: &Path, manifest: &Manifest, dialect: &Dialect) -> ProjectOutp
             diagnostics.append(&mut e.diags);
             summaries.extend(e.summaries.into_iter().map(|s| (p.path.clone(), s)));
         }
+        crate::naming::restore(&mut diagnostics, &names);
         diagnostics.sort_by_key(|d| d.span.start);
         files.push(BuiltFile {
             out_path: out_path(&p.path),
