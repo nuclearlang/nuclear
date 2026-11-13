@@ -74,9 +74,10 @@ appcomponent = "components/{component}/{component}_appcomponent.nuc"
 --dialect <d>` prints it, and agents (the Nuclear Developer's planner) build a piece's path from it instead of
 guessing a folder.
 
-`[[generators.<what>]]` (ADR-0103) is what `dragonfly gen <what>` writes: `component` (a component's facade) and
+`[[generators.<what>]]` (ADR-0103) is what `dragonfly gen <what>` writes: `component` (a component's facade),
 `resource` (models, repository, a use case per action, the facade's aliases, the platform's entry: a controller, or a
-screen with its state manager and state model, the tests). Each entry is one file at its kind's `[layout]` place:
+screen with its state manager and state model, the tests) and `usecase` (a use case that only calls a repository
+method, the alias of a use case in the facade, its route). Each entry is one file at its kind's `[layout]` place:
 
 ```toml
 [gen]
@@ -88,7 +89,8 @@ kind = "usecase"
 each = "each_action"          # one file per item of the list
 when = "rest"                 # a value that must be true (rest, db, screen, paged, actions.<action>)
 name = "{{UseCase}}"          # the declaration; the file is it in snake_case
-merge = false                 # true: a file that exists gets only the lines it lacks (a facade's aliases)
+merge = false                 # true: a file that exists gets only the members it lacks, each one whole (a facade's
+                              # alias; a controller's route with its decorator and its body), told by its head line
 template = """..."""
 ```
 
@@ -96,9 +98,14 @@ The values: `Name`/`name`, `Names`/`names` (the plural), `component`/`Component`
 `optional`, `id`, `last`, `sample`), `data` (the fields without the key), `models` (`Model`, `fields`, `main`), `rest`,
 `db`, `path`, `baseUrl`, `connection`, `paged`, `Page`, `items` (the page's field with the list), `idType`, `label` (what
 a list shows of an item), `listParam`/`listArg`, `sample`/`pageSample` (values for the tests), `actions.<action>`,
-`each_action` (`action`, `UseCase`, `alias`, `is.<action>`), `screen`/`Screen`. The Nuclear a generator writes is the
-same for every dialect of the platform (rule 11); a test builds a generated resource with every dialect
-(`a_generated_resource_compiles_with_every_dialect`, dragonfly).
+`each_action` (`action`, `UseCase`, `alias`, `is.<action>`), `screen`/`Screen`. The values of `usecase`: `UseCase`,
+`alias`, `component`/`Component`, `params` (`id: int, input: Order`, as the project writes them), `args` (`id, input`),
+`error` and `value` (the two types of its `Result`), `async` (its `exec` awaits: what calls it writes `~`); with
+`--calls`, `Repository`, `method` and either `result` (the method answers a `Result`) or `plain` (its answer goes inside
+an `Ok`); with `--route`, `route`, `verb`, `prefix`, `path`, `Controller` and `app` (the controller's name for the
+facade). A platform without a piece for a case refuses it (`--route` where no piece has `when = "route"`). The Nuclear
+a generator writes is the same for every dialect of the platform (rule 11); a test builds a generated resource and
+its use cases with every dialect (`a_generated_resource_compiles_with_every_dialect`, dragonfly).
 
 A field rule: `optional` (the field is `x?: T`), `list` (its type is a list, or not), `target` (its type, or its
 items, is a declaration with that decorator), `sibling` (a field of the same declaration must exist; `{name}` is the

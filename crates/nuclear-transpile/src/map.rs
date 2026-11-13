@@ -42,6 +42,69 @@ pub fn inventory(root: &Path, manifest: &Manifest, dialect: &Dialect) -> Vec<Dec
     out
 }
 
+/// A declaration as its source writes it: its file, its header's parameters and its methods (`dragonfly gen usecase`
+/// reads what it wires).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Shape {
+    pub file: String,
+    /// The header's parameters: (name, type).
+    pub params: Vec<(String, String)>,
+    pub methods: Vec<MethodShape>,
+}
+
+/// A method: its parameters as written (`id: int, input: Order`), their names, and its return type when it has one.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodShape {
+    pub name: String,
+    pub params: String,
+    pub args: Vec<String>,
+    pub ret: Option<String>,
+    /// It is asynchronous: its body uses `~` (a call to it is written with `~`).
+    pub awaits: bool,
+}
+
+/// The declaration `name` of the project's `.nuc` files.
+pub fn shape(root: &Path, manifest: &Manifest, dialect: &Dialect, name: &str) -> Option<Shape> {
+    let out_dir = root.join(project::output_dir(manifest, dialect));
+    for rel in project::sources(root, &out_dir) {
+        let Ok(source) = std::fs::read_to_string(root.join(&rel)) else { continue };
+        for item in &nuclear_syntax::parse(&source).file.items {
+            let Item::Decl(d) = item else { continue };
+            if d.name.name != name {
+                continue;
+            }
+            let list = |p: &Option<Params>| p.as_ref().map(|p| p.list.clone()).unwrap_or_default();
+            let methods = match &d.body {
+                Body::Members(ms) => ms
+                    .iter()
+                    .filter_map(|m| match m {
+                        Member::Method(md) => Some(MethodShape {
+                            name: md.name.name.clone(),
+                            params: params(&list(&md.params)),
+                            args: list(&md.params).iter().map(|p| p.name.name.clone()).collect(),
+                            ret: md.ret.as_ref().map(|t| type_text(Some(t))),
+                            awaits: md.is_async
+                                || match &md.body {
+                                    Body::Block(b) => crate::analysis::awaits_block(&b.stmts),
+                                    Body::Expr(e) => crate::analysis::awaits_expr(e),
+                                    _ => false,
+                                },
+                        }),
+                        _ => None,
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            };
+            return Some(Shape {
+                file: rel.to_string_lossy().replace('\\', "/"),
+                params: list(&d.params).iter().map(|p| (p.name.name.clone(), type_text(p.ty.as_ref()))).collect(),
+                methods,
+            });
+        }
+    }
+    None
+}
+
 pub fn map(root: &Path, manifest: &Manifest, dialect: &Dialect) -> String {
     let out_dir = root.join(project::output_dir(manifest, dialect));
     let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();

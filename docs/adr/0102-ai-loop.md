@@ -83,7 +83,8 @@ answers are equivalent.
     (the Nuclear of a platform is the same in all of them), `nuclear spec --brief --platform <p>` gives the base and the
     platform's sheet (`spec/brief/<platform>.md`) without the target language's, and the graph's `nuclear` collection
     holds only what they read (examples, the kinds' words, the base and platform specs, the language guide; no dialect
-    templates, runtimes or target-language code blocks). The full `knowledge` collection is the frontier model's.
+    templates, runtimes or target-language code blocks). The full `knowledge` collection is the frontier model's. (ADR-0104 replaced the two
+    collections with shelves of rows; the rule is now each row's `agents` flag.)
 12. **The tools write; the agents think the business logic** (decided by the user, 2026-11-11). Before an agent writes,
     the transpiler has written the project map (`.nuclear/map.md`: each declaration with its kind, its doc comment and
     its members) and the platform says where each kind goes (`[layout]`) and its smallest file (`[skeletons]`,

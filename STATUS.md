@@ -60,7 +60,130 @@ comparison tables.
 
 ## Half done
 
-- **Documentation and the RAG always up to date (decided by the user 2026-11-11, NOT STARTED).** Why: an ADR-0103 pass
+- **The AI services built into the installer (ADR-0106; asked by the user 2026-11-13: "necesito que esto venga builtin
+  dentro del instalador"; then: the extension reads the hardware and offers lite / medium / hard, the user decides,
+  each says how far it works; the services start at login; Ollama detected or installed as a step, else remote agents
+  only). DONE except the measurements below (nuclear-developer session, 2026-11-13).**
+  - **DONE.** The engine `nuclear-vscode/src/aiSetup.ts` + its data `aiSetup.json` (requirements, profiles); the
+    wizard `setupPanel.ts` (*Nuclear: Set Up the AI Services*, offered once, *Set-up…* in the settings page);
+    `nuclear-loop setup [--profile] [--yes] | --status | --remove`; the services at login (systemd user units, launch
+    agents, a Startup script); the machine's file `~/.config/nuclearlang/ai.env` as the default models of the Loop and
+    the editor; the settings page's Start / Restart through the system's manager; `tools/release/stage.sh` puts `ai/`
+    in every archive (9.9 MB the Linux one); `tools/release/install.sh` / `install.ps1` / `./install.sh --ai` call the
+    set-up, bring a machine already set up to date without questions, and remove the services on `--uninstall`;
+    `release.yml` clones the three AI repositories; `nuclear-graph`: the extra `mcp` (33 MB instead of 405), the
+    remote-only MCP server (15 tools of 26, other instructions), `paths.machine()`. Ollama stays the runtime (the
+    alternatives looked at are in the ADR). Docs: `docs/ai/setup.md` (new, in the website's AI menu), ADR-0106 + both
+    indexes, loop.md, mcp.md, the READMEs of nuclear-graph, nuclear-developer and nuclear-vscode, eight CHANGELOGs,
+    `docs/context/tech.md`, the editors' context. Knowledge base revision 37 (2 549 rows): `concept:ai-setup`,
+    `playbook:set-up-the-ai-services`, `limit:remote-agents-only`, `failure:a-service-started-by-hand-holds-its-port`,
+    ten rows that described the manual set-up updated, four questions (156 of 156 find their row). Editors 0.48.0
+    (VS Code installed; JetBrains zip built; Zed installed).
+  - **Checked.** nuclear-vscode `npm test` 28 + tsc; graph pytest 33; root cargo test 276; a local release archive
+    installed into a test home: the `remote` profile end to end (the MCP server there offers no local tool); **on this
+    machine for real:** `nuclear-loop setup --profile hard --yes` twice (the profile it already ran): the graph's
+    tool, the Developer built and installed, the models found, both systemd user units written, enabled and started,
+    the knowledge base loaded, `--status` all running, a strategy and a chat answer served by them; a hand-started
+    graph on the port stops the set-up with the command that stops it; the wizard's pages rendered headless with this
+    machine's state.
+  - **This machine since 2026-11-13:** the graph (7878) and the Developer (7879) are the systemd user units
+    `nuclear-graph` and `nuclear-developer` (profile `hard`, the models it had; the set-up suggests `medium` for its
+    16 GB): `systemctl --user restart nuclear-developer` after a change to its code,
+    `journalctl --user -u nuclear-developer -n 50`. They start at login; the processes started by hand are gone.
+  - **LEFT.** (1) The measurements of the profiles: `lite` (`qwen2.5-coder:1.5b`) was never run; `medium`
+    (`qwen2.5-coder:3b` for both roles) has its coder's numbers (the model of `hard`) and 6 of the first 8 chat
+    questions, the ninth had not ended after five minutes when the run was stopped, and no `analyze` nor features
+    round; `llama3.2:3b` as a lighter assistant was not run (its side Developer did not start); `qwen3.5:2b` took 2.5
+    minutes per chat answer and was dropped. Each profile's card says what was measured; run `eval/run.py chat`,
+    `analyze` and `local` on a side Developer (port 7880, `CODER_MODEL` / `ASSISTANT_MODEL`) per candidate, then write
+    `aiSetup.json` (`test/setup.test.ts` holds `docs/ai/setup.md` to it). (2) A GPU other than NVIDIA's and Apple
+    silicon is not recognised (this machine's Radeon 890M runs the models, Ollama says "100% GPU"; the set-up says no
+    GPU with memory of its own). (3) Android Studio has no wizard (`nuclear-loop setup`). (4) The memory figures of
+    the profiles (`ram`, `minRam`) come from the models' loaded size and this machine's behaviour, not from runs on 8
+    and 32 GB machines.
+
+- **The Smart Graph as a library of typed, linked, versioned rows, and the Nuclear Developer on top of it (asked by
+  the user 2026-11-11; ADR-0104; nuclear-developer session, 2026-11-12).** The order: the RAG was "copied without
+  sense"; design rows, collections and metadata for Chroma; every tool, error (and how they relate), capability and
+  limit; versions, updated with every feature; retrieval tests with people's questions; then the local agent as a tool
+  executor (spec → big tasks → medium → small, generators first, the internet for facts, knows its limits, roles and
+  skills, a lite agent toolbox), later a frontier model as its manager.
+  - **DONE.** `nuclear-graph`: `shelves.py` (the schema: 9 shelves), `assets.py`, `extract.py` (the generated rows),
+    `knowledge.py` (`knowledge build | check | review | ask`), `store.py`, `retrieve.py` (meaning + exact names + the
+    questions a row answers + links), `ingest.py`, routes `/v1/cards/{id}`, `/v1/applies`, `/v1/kinds/{platform}`,
+    `workspace.py` (a project's files for an agent, read-only), MCP `graph_search` by shelf, `graph_card`,
+    `developer_code(project)`. The knowledge base `nuclear-developer/data`: 2 549 rows, revision 37 since 2026-11-13
+    (`gen usecase`, the generators' guide, the MCP page, the strategies; the running graph holds it) (2 325 generated, 186 written
+    by hand: purpose, concepts, theory, questions, capabilities, limits, playbooks, roles, skills, failures, pitfalls,
+    the diagnostics' relations), `sections.toml`, `questions.toml` (94 questions and 62 requests, English and Spanish: every one finds
+    its row; before, "que es nuclear" answered the agent skill), `schema.json`, `manifest.json`, `revisions.json`; the
+    byte-for-byte copies removed. The Developer: recall by kind (the kind's card, every pitfall of the kind, examples
+    of the same kind only, each error's card at repair), the coder's guide without kind-specific rules, the faithful
+    check, the project's files as context (`root`), the planner's spoken kinds, the plan's tree and limits, the
+    assistant over every shelf in the developer's language. The Loop (editors 0.45.0): `root` in every call, the
+    plan's limits in the step, *Tests first* skipped when everything was generated. The stop hook runs
+    `knowledge check`; AGENTS.md rule 5 and workflow.md include the knowledge base. Measured: rounds 22 and 23: 43 / 45 (Sonnet 39), held out 16 / 18 (Sonnet 17), every task of one file in round 22 (42 of 42), features 1 then 2 of 3
+    (round 17, before: 37 / 45, 14 / 18, 1 of 3; rounds 20–21, the guide without its general rules: 39, measured and
+    discarded); the assistant answers 9 of 10 chat questions as required (`eval/run.py chat`).
+  - **LIVE since 2026-11-12.** The old graph (7878) and Developer (7879) had stopped with the session that started
+    them; the new ones were started on the real ports and the base ingested into the real database (revision 17, 96 s;
+    the collections `knowledge` and `nuclear` removed; a copy of the old database is
+    `~/.local/share/nuclear-graph/db.bak-2026-11-11`). Checked live: `knowledge ask` 84 of 84, `knowledge check` clean
+    ("the graph holds it"), the Developer's 8 tests, a chat answer in Spanish. They ran as background tasks of that
+    session and Claude Code stopped both the same night because the machine was critically low on memory.
+    **Since 2026-11-13 they are systemd user units (ADR-0106, the item above); what follows is how they ran on
+    2026-11-12.** Started again 2026-11-12 (asked by the user), detached from any session: `setsid nohup ~/.local/bin/nuclear-graph
+    serve` and `setsid nohup ~/.local/bin/nuclear-developer` (logs in `~/.local/state/nuclearlang/{graph,developer}.log`;
+    stop them with `pkill -f 'nuclear-graph serve'` and `pkill -f 'uvicorn app.main:app'`; the editor's *Settings and
+    integrations* page starts them too). Both were restarted several times the same day to load the strategies' code (ADR-0105); the database holds the
+    base's current revision; `knowledge ask` finds every question and request; the chat answered a question about
+    `gen usecase` in Spanish in 40 s. They do not start by themselves after a reboot. With the
+    assistant's model loaded the machine had under 1 GB of memory available (15 GB, the browser and the editor open). The second pair used for the measurements (ports 7888 and 7880) is stopped;
+    its data folder `~/.local/share/nuclear-graph-next` can be deleted.
+  - **Strategies (ADR-0105, asked by the user 2026-11-12: "formula cada estrategia para el agente dependiendo el tipo
+    de feature"). DONE.** 31 `strategy:<name>` rows in five families (create, change, fix, verify and explain, beyond):
+    how each kind of request is recognised, its plan with the tool of every step, and what it asks of a run
+    (`nuclear-developer/data/assets/playbooks/strategies.json`). The selection asks no model (`retrieve.strategy`,
+    `POST /v1/strategy`, `nuclear-graph strategy`, MCP `graph_strategy`); the analyst (`analyst.nuc`,
+    `POST /developer/analyze`) reads the project, takes the strategy, turns a request in plain words into generator
+    calls tried with `--dry-run` (its one model call), gives the pieces the tools find (the declaring files; a rename's
+    files rewritten by `Workspace.renamed`) and asks for the facts the request lacks; the Loop (editors 0.46.0) runs the
+    analysis as the last step of *Specification*, skips the stages the strategy has no use for, generates from the
+    analysis, writes tool-made pieces as they are, wires each use case with `gen usecase` after *Code* and, for a bug,
+    repairs the file the failure names and never the test. Measured: `knowledge ask` 62 of 62 requests to their
+    strategy (English and Spanish, none among the rows' `asks`); `eval/run.py analyze` 10 of 11 (4 of the 5 that ask the
+    model); end to end with `nuclear-loop run` and the local agents only, on a fresh fastapi project: a spec in plain
+    words ("each supplier has a name and a phone; we add, list and change them") → `gen resource` from the analysis → 9
+    files → build, install, test green; a rename → `Supplier` and the four names built from it, 9 files rewritten by the tool, no model writing → test
+    green in 25 s; and a use case with its rule and its route → one piece planned in the component the project has,
+    written by the coder, wired by `gen usecase --route` (alias and route), build, install and test green, then stopped
+    at *Security* by the local reviewer (see LEFT 9); the tester's own test did not compile and was corrected by hand.
+  - **LEFT (the agent as a tool executor).** (1) What the strategies still do by a model or by hand, each a missing
+    tool: relations in `gen resource --source db`; a search of a stored resource (refused now: which column is
+    searched is a decision); a field added to a resource that exists (the files are kept: `strategy:member` gives its
+    declaring files to the coder); tests for a backend REST resource (needs `@mock` in the backend platform); on mobile
+    and web what a screen shows of a use case; the Loop writes files and never deletes or moves one (`strategy:remove`
+    is by hand; a renamed declaration's file keeps its path); a rename covers declarations, not fields or methods.
+    (2) The planner is still asked when the generators wrote everything, twice (no pieces → `plan-again`): two long
+    answers of the 2B model, 15 minutes on this machine short of memory; a strategy whose generator calls cover the
+    request could skip it, but only a model can tell that nothing is left. (3) The Loop's form in the editor has no
+    field for the strategy (the spec file's `- Strategy:` line and `nuclear-loop run` read it). (4) The internet tools
+    (`web.py`) wired into the local planner (today only over MCP). (5) The frontier model as manager: `graph_strategy`
+    gives it the plan of each kind of request; the Loop's Claude-led plan still pastes context. (6) The feature
+    `new-reader` of the evaluation (a field declared twice in its entity, or a declaration written in two files) and
+    `function-label` (passes in one round, not in the next). (7) The planner still names a component in the singular
+    (the analyst corrects it in a generator call). (8) The evaluation has no watch on a stalled call. (9) The local security reviewer
+    stops a backend run that changes data: it reports "missing authorization check" as a high finding on every use
+    case that saves (also on generated ones, seen when a rename rewrote them: a rename now runs no security review) and
+    proposes `@acl`, which the backend platform does not have yet (`limit:backend-not-yet`); what the platform cannot
+    express should be told as a limit, not fail the run. (11) The local tester's test of a use case did not compile
+    (it read `NewVendor.id` and never created the row): the run stops at *Code* until the test is corrected. (10) The analyst's model drops a field of a
+    list now and then (the count check turns that into a question to the user).
+
+- **Documentation and the RAG always up to date (decided by the user 2026-11-11; the RAG part DONE 2026-11-12 with
+  ADR-0104: `knowledge check` in the stop hook, rule 5 of AGENTS.md, workflow.md §6; the watcher of layer 1 is no longer
+  needed: the base is built from the tree in a second and the hook refuses a stale one. LEFT: layer 3, the docs; a first
+  piece of it since 2026-11-12: a graph test holds every MCP tool to the README and to `docs/ai/mcp.md`).** Why: an ADR-0103 pass
   claimed "documented" and missed CHANGELOGs, READMEs, the skill and three platform CONTEXTs; the user had to ask.
   Scope of "documentation" (the user's words): context docs (`docs/context/`), `/docs`, every `.md` that describes the
   change, everything for the agents (skill `agents/skills/nuclear/SKILL.md`, `spec/brief/`), the website's docs
@@ -75,9 +198,8 @@ comparison tables.
      `docs/context/`, its `/docs` or `.md`, its CHANGELOG, the skill/briefs when a command, MCP tool or Loop stage
      changed, the website content rebuilt when a page it publishes changed, the RAG clean. The list written in
      `docs/context/workflow.md`. Test: the hook refuses with a missing doc.
-  Also left from 2026-11-11: the knowledge base was rebuilt (`knowledge check` clean) but not re-ingested into the
-  running graph (`nuclear-graph ingest ../nuclear-developer/data`), and the skill not copied to
-  `~/.claude/skills/nuclear`, `~/.agents/skills/nuclear`, `~/.codex/skills/nuclear` (or `./install.sh`).
+  The skill was copied by `./install.sh` on 2026-11-12; the running graph still holds the base of before (see the
+  item above: not live yet).
 
 - **Generators: the CLI and the MCP write the code, the agent only what is not standard (ADR-0103, asked by the user
   2026-11-11, for the three platforms, CLI and MCP complete).** The user had understood that this existed: only
@@ -100,7 +222,9 @@ comparison tables.
   Loop's *Generate* stage (before Plan; resources from `## Resources` or `GET <url>` lines; files in the write
   ledger; the planner plans only the rest). (5) `nuclear-loop run` of the user's spec on a copy of
   nuclear_rick_and_morty: Generate wrote 11 files that compile, the planner left 0 pieces, the run failed at the local
-  tester's own test (it read `characters.value` and asserted a 409 against the live API). Left: `@mock` for the backend
+  tester's own test (it read `characters.value` and asserted a 409 against the live API). Since editors 0.45.0
+  (2026-11-12) the same kind of spec passes end to end on a fresh backend project (`nuclear-loop run`, 2 min 40 s: 11
+  generated files, 0 pieces, *Tests first* skipped because every file was generated, build + install + test green). Left: `@mock` for the backend
   platform so `gen` writes a REST resource's tests (then the tester only adds what is specific); the nestjs HTTP
   repository decoding by the model (today the raw JSON: a renamed field reads `undefined` in a use case); `web_search`
   needs SearXNG or a Brave key to be useful (Wikipedia answers noise); the user's project still has the failed run's
@@ -234,6 +358,39 @@ comparison tables.
 
 ## Untested (done; needs a manual test)
 
+- ADR-0106 (the set-up of the AI services, editors 0.48.0): the wizard inside a running VS Code (its pages were
+  rendered headless; the offer at start-up, *Install it for me* in a terminal, the three-second check, *Try again*);
+  macOS (launch agents, Homebrew for Ollama) and Windows (the Startup script, `winget`, `install.ps1 -AiProfile`,
+  `nuclear-developer.cmd`): written, never run; a machine without uv or without Ollama (both were here: their
+  installers were not run by the set-up); the public one-liner with a real release (only a local archive into a test
+  home, and its local profiles only up to the services step, because systemd's user manager is the real user's); a
+  login after a restart of the machine (the units are enabled and restart on failure; whether the keyring is open when
+  the graph starts was not seen); the `lite` profile's download (its model was already here); the settings page's
+  Start / Restart against the units.
+
+- ADR-0105 (strategies, editors 0.46.0): the Loop panel in a running VS Code (the *Analysis* step of the
+  Specification stage, a stage skipped by a strategy, the questions that stop a run), the JetBrains tool window, and
+  the MCP tool `graph_strategy` from an interactive Claude Code / Codex / Cursor (the selection ran over HTTP and the
+  CLI only). End to end only on a backend (fastapi) project: no run on a mobile or a web project, none with nestjs,
+  none led by Claude. Of the 31 strategies, three ran as whole Loop runs (a stored resource in plain words and a rename, both passed; a use
+  case with its route, green up to the tests after its test was corrected by hand, stopped at Security); the bug strategies (`bug-compile`, `bug-failing-test`, `bug-behaviour`,
+  `bug-runtime`) ran only as analyses and engine tests, never against a project with a real bug; `data-migration`,
+  `configuration`, `document`, `tests`, `security-review` and `operate` only as classifications.
+- `dragonfly gen resource` adding an action to a resource that exists: the compile test with the four dialects; not
+  the generated code run (pyright, tsc, the routes over HTTP).
+
+- `gen usecase` (2026-11-12): the MCP tool `generate_usecase` from a real MCP client (only its arguments are tested;
+  the CLI underneath ran end to end on fresh fastapi and nestjs projects); on mobile and web only the compile test
+  ran (no `flutter analyze`, no `tsc` of a react build); the fixed-segment-first route order of nestjs with a
+  `@Controller` that Nest scans before `configureApp` (a module that reads its routes at construction).
+- The services started detached on 2026-11-12: the editor's Start / Restart buttons against them (the launcher
+  `~/.local/bin/nuclear-developer` was written as `install.sh --ai` writes it, `--ai` itself was not run), the Loop and
+  the chat panels of the extension 0.46.0 (only `POST /developer/chat` and `nuclear-loop run` were called by hand).
+
+- ADR-0104 in a running editor and from MCP clients: the chat panel and the Loop panel of the extension 0.45.0 (the
+  `root` they send, the Plan step's tree and limits), the MCP tools `graph_card` and `developer_code(project)` from
+  an interactive Claude Code / Codex / Cursor; `knowledge check` inside the stop hook was run by hand only.
+
 - ADR-0103 in a running VS Code: the Loop panel's Generate stage (only `nuclear-loop` ran it) and the MCP generators
   from an interactive Claude Code / Codex / Cursor (only called from Python).
 - The nestjs `ilike` is Sequelize's `Op.iLike` (PostgreSQL only): with MySQL/MariaDB/SQLite it is not case-insensitive
@@ -351,6 +508,11 @@ comparison tables.
 - What is mandatory in `main.nuc` and mandatory file names (`_usecase`, `_repository`).
 
 ### Dragonfly: to do
+- **CI red since 2026-11-12: the new Flutter stable (after 3.47.0) deprecates `package:flutter/material.dart` and
+  `GlobalMaterialLocalizations` for the `material_ui` package**; `flutter analyze` of `packages/dragonfly` reports 9
+  infos (`deprecated_member_use`) and exits 1. Not caused by a change of ours. The right fix is moving the runtime, the
+  flutter dialect's auto-imports, its templates and the Dart defs to `material_ui` (decide with the user; hiding it
+  with `--no-fatal-infos` would be a shortcut). Local Flutter is older and does not show it.
 - Genkit: interrupts (tool confirmations), middleware (retry), the Developer UI from `dragonfly run`, `dragonfly g chat|flow|tools` generators, a persistent Knowledge (today in memory), multimodal parts (images) in chats.
 - Editors (ADR-0077, 0083): split the base extension from Dragonfly for Flutter (run/debug/device) in VS Code
   and JetBrains; framework extensions namespaced and activated by the project marker.
@@ -399,6 +561,16 @@ comparison tables.
   the numbers published (step 7 of "Next"). Thesis C needs programs that use the framework kinds, not only CPU loops.
 
 ## Pending: Dragonfly backend — fastapi dialect (today `langgraph`, packages/dragonfly-py)
+
+- A repository whose name implies an entity nobody declares compiles (found 2026-11-12 by a rename, ADR-0105): with
+  `Supplier` renamed to `Vendor` and `SupplierRepository` left, `nuclear check .` reports nothing and the generated
+  Python fails when imported (`NameError: name 'Supplier' is not defined`). The repository kind takes its entity from
+  its own name: the compiler should report a `<Name>Repository` without a declared `<Name>` (a diagnostic of the
+  platform's contract, both dialects). The rename tool now renames the names built from the old one, so it no longer
+  leaves one.
+- A map field of a graph's state gets no default (`state_field.tpl` gives one to lists, texts, numbers and booleans;
+  the emitter's `tinfo` has no `map` flag): `strategy: <string, string>` in the Developer's `PieceState` is written
+  with `= {}` by hand. Generic fix: `tinfo.map` in `emit.rs` and the template, for both backend dialects.
 
 - ADR-0100 limits (2026-11-10): the join table
   name is always `<owner table>_<field>` (no custom name); `@transactional` uses the default database only (nestjs:
@@ -456,6 +628,10 @@ comparison tables.
 
 ## Pending: AI loop (nuclear-graph, nuclear-developer, the Loop tool; ADR-0102)
 
+- What the generators write in their comments says "a order" (`// Changes a order`, `@test("adds a order and finds
+  it")`): the article is not chosen by the name's first letter (the three platforms' `[[generators.resource]]`
+  templates).
+
 - Weight training (LoRA): what it needs is `specs/007-lora-nuclear-coder/plan.md` (asked by the user 2026-11-11). To
   decide with the user: where the training answers come from (self-distillation validated by the compiler, or Claude's
   answers — check Anthropic's terms on training models with outputs first; the budget approved so far is USD 20), the
@@ -472,10 +648,16 @@ comparison tables.
 - The local tester copies a solved graph example close to its task (a models-only spec got an appcomponent test): such
   a local-only run now fails at Tests first with the diagnosis; the tester's retrieval needs examples filtered by what
   the plan declares.
-- `nuclear-graph` and `nuclear-developer` are installed from the source tree only (`./install.sh --ai`); the release
-  installers bring `nuclear-loop` but not them (they are not published to PyPI).
 
 ## Pending: nuclear (language and compiler)
+
+- `~` before a call that is not asynchronous compiles and fails in Python (found 2026-11-12 with `gen usecase`): a
+  use case whose `exec` has no `~` is synchronous, so is its facade alias, and a controller that writes
+  `~app.tidyTitle(title)` is emitted `await self.app.tidy_title(title)`: pyright `"Result[AppError, str]" is not
+  awaitable`, and at run time `TypeError: 'Result' object can't be awaited` (TypeScript and Dart only await a plain
+  value). The compiler knows the callee is synchronous (`Sig.is_async`): the mirror of N0222 is missing, a diagnostic
+  with the fix "remove `~`" (new code, `spec/diagnostics.md`, rules.rs). `gen usecase` already writes `~` only when
+  the use case awaits; hand-written and agent-written code is not guarded.
 
 - `Name<T>.member(...)` (`Set<int>.of`, `List<int>.filled`) does not parse: a generic type before a member; today
   `s: Set<int> = Set.of(...)`. Assessed 2026-11-08 (nuclearlang-4a): clean support needs an additive AST node for a
@@ -507,6 +689,133 @@ comparison tables.
 
 ## Log (newest first)
 
+- 2026-11-13 · nuclear-developer session · **The AI services built into the installer (ADR-0106; asked by the user:
+  "necesito que esto venga builtin dentro del instalador", then a wizard that reads the hardware and offers lite /
+  medium / hard, services at login, Ollama as a detected or installed requirement, remote agents only as a choice).**
+  Details, what was checked and what is left in "Half done" (first item) and "Untested". First answered "subiste los
+  servicios?" (they were running). Looked for a better runtime than Ollama (web search: llama.cpp's server, LM
+  Studio, MLX, vLLM): none for this case, the reasons are in the ADR. Measured candidate models on a side Developer
+  (port 7880) and stopped the round when the user asked to push: partial numbers, recorded as LEFT. This machine's
+  services are now systemd user units. Found on the way: another session packaged and installed the VS Code extension
+  0.47.0 (the file tree's right-click menu) from the same working tree while this work was half written, so that
+  package carried it; 0.48.0 replaces it. The machine's `/tmp` (tmpfs, 7.7 GB) was full: it made the graph's tests,
+  the website's content build and one cargo test fail until this session's test folders were deleted; other
+  sessions' scratch folders (3.9 GB) and Flutter's temporary folders (1.7 GB) are still there. Pushed to the
+  repositories (asked by the user: "subelo al repo"): every repository of the tree with pending changes, the work of
+  2026-11-11 to 2026-11-13.
+
+- 2026-11-12 · nuclear-developer session (resumed) · **A strategy for each kind of request (ADR-0105; asked by the
+  user: "formula cada estrategia para el agente dependiendo el tipo de feature… el apoyo máximo es en el generador, el
+  rag y los tools del agente").** Presented to the user first (the 31 kinds in five families and the plan of each),
+  then built. Details in "Half done" → Strategies. Knowledge base: the row type `strategy` (playbooks shelf; `meta`
+  family / scope / triggers, `data` signals / target / mode / stages / pieces / generators / needs / lead), 31 rows
+  (`assets/playbooks/strategies.json`), `concept:strategies`, two failure rows, six curated rows updated,
+  `questions.toml` with 62 requests (`request = true`) and 2 questions. Graph: `retrieve.strategy` (exact signs, then
+  meaning; no model), `POST /v1/strategy`, `GraphClient.strategy`, `nuclear-graph strategy`, MCP `graph_strategy` and
+  its place first in the server's instructions, `knowledge ask` over requests, `Workspace.renames` / `renamed` (a
+  rename as a tool, with the names built from the old one), the prompt `agents/analyze.md`; pytest 32. Developer: the
+  analyst (`analyst.nuc`, `POST /developer/analyze`, `Analysis`), the planner knows the project (`PlanRequest.root`:
+  what the project has and the spec only uses is not planned again, new pieces go to its component); 13 Nuclear
+  tests, pyright strict 0; `eval/run.py analyze` (11 cases) 10 of 11; `eval/run.py chat` 10 of 10 (9 before); the 45 specs of the
+  evaluation's tasks and features given to the analyst: every one keeps the whole write pipeline, none is asked a
+  question and none gets a generator call (a request that introduces a declaration with its kind's word is already
+  designed: the planner splits it). Loop (editors 0.46.0, the three packaged, VS Code
+  installed): the analysis step, stages by strategy, generator calls from the analysis, tool-made pieces, `wire()`
+  after Code, a bug's repair in the file the failure names and never in its test, `- Strategy:` in a spec; `npm
+  test` 20. Generator (found on the way): `dragonfly gen resource` with a new action on a resource that exists left a
+  use case calling a repository method nobody had (N0116): the repository and the controller are merged now
+  (`merge = true` in the three platform.toml), and `--source db --actions search` is refused; dragonfly 38 tests +
+  clippy. **Found by the real runs and fixed:** a model asked about a request that lists no field invents them (it
+  is asked only when the request lists some, and held to that count); an entity renamed alone compiles and fails when
+  it runs, because a repository is bound to its entity by its name (the rename takes the names built from the old
+  one); a use case's request was read as a repository's (a use case names its repository); the planner planned again
+  the entity and the repository the project had, in a component of its own. **Found and not fixed** (recorded):
+  "Pending: Dragonfly backend" (a repository of an entity nobody declares compiles; a map field of a state has no
+  default), "Pending: AI loop" ("a order" in generated comments), LEFT 2, 9, 10, 11. Docs: ADR-0105 + both indexes,
+  docs/ai/loop.md (the strategy of a request), docs/ai/mcp.md, the generators' guide, spec/{backend,mobile,web}.md,
+  the READMEs of nuclear-graph, nuclear-developer, nuclear-knowledge and nuclear-vscode, the editors' context, the
+  skill (copied by install.sh), ten CHANGELOGs, the website's content (168 pages). Checked: root cargo test 276 +
+  clippy -D warnings; the three real `nuclear-loop run` (Half done). The graph and the Developer run detached on
+  7878 / 7879 with the base ingested; `knowledge check` clean. Not done: no `eval/run.py local` round (the coder's,
+  the tester's and the planner's prompts and the shelves they recall from did not change; the planner's new
+  post-processing only acts in a project that already has declarations, which the evaluation's fresh projects do
+  not); fastapi-check and nestjs-check not run again (the runtimes did not change).
+
+- 2026-11-12 · installer check · Website published at https://nuclearlang.github.io/ (repo renamed `nuclearlang.github.io`, `deploy` job in its ci.yml, SPA `404.html`); `/install.sh` and `/install.ps1` are served (200). Checked `tools/release/install.sh` with a local mirror of `package.sh` output into a fake HOME: installs, `dragonfly new -p backend` + `nuclear check` 0, `--uninstall` clean. Fixed: with no release yet, the latest-tag lookup took `releases` as the tag (404 on a nonsense url); now "could not find the latest release". The `install.sh` fix is committed and pushed (nuclear `main`) and the website redeployed (the served file has it). **The public one-liner still fails: no release exists in `nuclearlang/nuclear`; it needs the tag `v0.1.0` (release.yml, never run).**
+
+- 2026-11-12 · nuclear-developer session (resumed) · The generators and the MCP documented as pages, and the services
+  started (asked by the user: "documenta los nuevos generadores… hay documentación del mcp en el rag y en la página
+  web? levanta los servicios"). Found: the knowledge base had a row per MCP tool (25 + `mcp:server`, `concept:mcp`,
+  `playbook:connect-an-mcp-client`), the website only a paragraph in the Loop page and no list of the tools; the
+  generators had sections in the specs and the guide, no page of their own. New: `dragonfly/docs/dragonfly/generators.md`
+  (every option, what each platform gets, a use case written and wired with real output, the refusals, the MCP tool of
+  each command, what is not generated yet) and `docs/ai/mcp.md` (set-up per client, the order a model works in, every
+  tool by group, failures); linked from the Dragonfly guide, the Loop page and the graph's README (whose table lacked
+  `developer_retry`); the website's AI menu (`site.toml`), content rebuilt (167 pages). A graph test holds every MCP
+  tool to the README and to the page. Knowledge base revision 22 (2 450 rows: 22 rows of the two pages; `concept:mcp`
+  and `concept:generators` have them as sources; 14 rows reviewed; 4 questions added, 88 of 88 find their row).
+  Services: the graph (7878) and the Developer (7879) run detached, the base ingested, `knowledge check` clean ("the
+  graph holds it"), one chat question answered (see "Half done" → LIVE for the commands and the memory left). In a
+  shell with the Developer's venv first in the PATH `nuclear-graph` is that venv's client-only script (no Chroma):
+  the server is `~/.local/bin/nuclear-graph`. Checked: graph pytest 30, the examples' blocks, the generators' examples
+  run on a fresh fastapi project (`nuclear check` 16 files, 0). CHANGELOGs of nuclear, dragonfly, nuclear-graph and the
+  website. Not done: the editors were not rebuilt (nothing of theirs changed), no evaluation round (no agent or
+  prompt changed).
+
+- 2026-11-12 · nuclear-developer session (resumed) · `dragonfly gen usecase` (asked by the user: "retoma la última
+  sesión"; the first of what was left that needs no model running, the graph and the Developer being stopped).
+  `dragonfly gen usecase <component> <Name> [--calls <Repository>.<method>] [--route "POST orders/{id}/cancel"]`:
+  a use case the project declares is wired (its alias in the facade; backend: its route in the controller of the
+  route's prefix, made when missing, called with `~` only when `exec` awaits), its signature read from the project
+  (`nuclear_transpile::map::shape`, new); `--calls` writes a use case that only calls a repository method (an answer
+  that is no `Result` inside an `Ok`: backend); refused: a use case neither declared nor given `--calls`, a `{name}`
+  of the route the use case does not take, a use case of another component, `--route` on mobile and web.
+  `[[generators.usecase]]` in the three platform.toml; a `merge` adds whole members (a route keeps its decorator and
+  body: a bare `@get` the file already had no longer loses the new route's), and a name declared elsewhere stops a new
+  `merge` file too. MCP `generate_usecase` + instructions. **Found and fixed on the way (it was there before): the
+  order of a controller's routes decided which one answered** — fastapi added them by method name, so `GET
+  <prefix>/search` of every generated REST resource answered 400 (taken by `{id}`); nestjs in the order written. Both
+  runtimes now add a fixed segment before a parameter (`dragonfly-py` `router_of`, `dragonfly-nest` `configureApp` →
+  `fixedRoutesFirst`; `spec/backend.md` §2.7; each runtime has a test that fails without it; `@nestjs/platform-express`
+  is a devDependency of dragonfly-nest for that test). Knowledge base revision 20 (2 427 rows: `tool:dragonfly.gen.usecase`,
+  `mcp:generate_usecase`, `generator:<platform>.usecase`; eleven curated rows updated, fifteen reviewed; `extract.py`
+  gives every `gen` command of the help its row instead of a fixed list), `knowledge check` clean. Docs: ADR-0103,
+  spec/dialects.md, spec/{backend,mobile,web}.md, the CLI's usage, dragonfly README + guide + tutorial + cli context,
+  the skill (copied by install.sh), nuclear-graph README, six CHANGELOGs, the website's content rebuilt. Checked: root
+  cargo test 276 + clippy -D warnings, dragonfly 38 + clippy, fastapi-check and nestjs-check, dragonfly-py 6,
+  dragonfly-nest 6, graph pytest 29 + 38 example blocks, and on fresh fastapi and nestjs projects with the built CLI:
+  pyright strict 0 / tsc strict 0, the generated tests, and the routes over HTTP (a fixed route after `{id}`, a
+  synchronous use case, an awaiting one with a path parameter, a paged query). `./install.sh --no-vscode --no-zed`
+  run. Not done: the editors were not rebuilt (their bundled dialects lack `[[generators.usecase]]`, which only the
+  CLI reads); `nuclear-graph ingest` (the graph is stopped); no evaluation round (no agent or prompt changed). Left
+  and found: "Half done" → LEFT, "Untested", "Pending: nuclear" (`~` before a synchronous call).
+
+- 2026-11-12 · nuclear-developer session · The Smart Graph redesigned as a library and the local agent tuned on it
+  (asked by the user; ADR-0104; details and what is left in "Half done"). Graph: shelves, rows with ids / keys / asks /
+  links / sources, hybrid search, `knowledge build | check | review | ask`, `/v1/cards`, `/v1/applies`, `/v1/kinds`,
+  `workspace.py`, 29 pytest tests + `tests/check_examples.py` (38 Nuclear blocks compile). Knowledge base: 2 414 rows
+  on 9 shelves, revision 17, 84 of 84 questions find their row. Developer: recall by kind, every pitfall of the kind,
+  the error's card at repair, the faithful check, the project's files as context, the plan's tree and limits, spoken
+  kinds, the assistant over every shelf; 8 Nuclear tests, pyright strict 0. Loop: `root` in every call, limits in the
+  Plan step, *Tests first* skipped when all was generated; `npm test` 16; editors 0.45.0 packaged and installed
+  (quit VS Code completely to load it; Android Studio: install `nuclear-jetbrains/build/nuclearlang-0.45.0.zip`).
+  Evaluation rounds 18–23: 43 / 45 against Sonnet's 39 (37 before), held out 16 / 18, features 2 of 3; chat 9 of 10.
+  End to end: `nuclear-loop run` of a Rick and Morty spec (`GET <url>`) on a fresh backend project passed in 2 min 40 s.
+  Docs: ADR-0104 + both indexes, AGENTS.md rule 5 and map, workflow.md §6, docs/ai/loop.md, the READMEs and
+  CHANGELOGs of nuclear-graph, nuclear-developer, nuclear-knowledge, nuclear-vscode, tools/context. The stop hook runs
+  `knowledge check`. Live on the real ports and the real database since the same day (revision 17).
+
+- 2026-11-11 · nuclear-developer session · Report for the user: the steps of a Loop run for a feature, from
+  `docs/ai/loop.md` checked against the `STAGES` of `nuclear-vscode/src/loopEngine.ts`, and what of it runs on the
+  machine (the models and the embeddings on Ollama, the graph and the Developer on 127.0.0.1). Nothing changed.
+
+- 2026-11-11 · nuclear-developer session · Report for the user: what the Nuclear Developer does, from its README,
+  CHANGELOG and AGENTS.md checked against the controller and the config. Nothing changed. Stale in its docs (not
+  fixed, not asked): README "Known limits" still lists the fixed 8192 context window (the config reads
+  `CONTEXT_TOKENS`) and the framework names in the kinds' words (now under `[underneath]`); README round 3 says
+  28 / 26 and 10 / 11 where `eval/results/REPORT.md` says 28 / 25 and 10 / 10; AGENTS.md and `config.nuc` name four
+  agents of the seven; the CHANGELOG stops at round 15 (the README has round 17).
+
 - 2026-11-11 · nuclearlang (AI loop session) · Pushed every repository and created the missing ones (asked by the user:
   "sube al repositorio y crea los repositorios que no existan"): nuclear-graph, nuclear-developer and nuclear-knowledge
   (`nuclear-developer/data`) created public under `nuclearlang` with LICENSE (Apache-2.0), CONTRIBUTING, CHANGELOG and
@@ -514,6 +823,9 @@ comparison tables.
   screenshot of the user's) kept out by `.git/info/exclude`. Before: root cargo test, dragonfly 36, graph pytest 20,
   nuclear-vscode 15 green; staged files scanned for e-mails, home paths and keys (none). Left: CI for the three new
   repositories (none yet: nuclear-developer and the graph's tests need the whole tree and a running graph).
+  CI after the push: nuclear, dragonfly, dragonfly-backend failed only on push order (a CI cloned a sibling before it
+  was pushed) and passed on re-run; dragonfly-web, nuclear-vscode, nuclear-zed, website green. dragonfly-mobile fails:
+  see Pending: Dragonfly mobile (Flutter stable deprecated `package:flutter/material.dart`).
 
 - 2026-11-11 · nuclearlang (AI loop session) · ADR-0103 docs the earlier pass missed (asked by the user): `dragonfly gen`
   in the skill (`agents/skills/nuclear/SKILL.md`, step 1), `dragonfly/README.md`, `dragonfly/docs/dragonfly/README.md`

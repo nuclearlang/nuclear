@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Keeps STATUS.md (the project state) in step with the work, across sessions and restarts.
 #   session: at session start, list work files changed after STATUS.md was last edited.
-#   stop:    at the end of a turn, block once if this session changed work files after STATUS.md.
+#   stop:    at the end of a turn, block once if this session changed work files after STATUS.md, or left the
+#            knowledge base of the Smart Graph behind the tree (`nuclear-graph knowledge check`, ADR-0104).
 set -u
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 state="$root/STATUS.md"
@@ -15,6 +16,14 @@ changed() {
     dragonfly/dragonfly/src nuclear-vscode/src nuclear-jetbrains/src nuclear-zed/src \
     \( -name target -o -name node_modules -o -name build -o -name .dart_tool -o -name .venv -o -name dist-test -o -name dist -o -name .pytest_cache -o -name __pycache__ -o -name .git \) -prune \
     -o -type f -newer "$1" -print 2>/dev/null
+}
+
+# What the knowledge base is made from (ADR-0104) and was changed after $1: sources, docs, dialects, the agents.
+touched() {
+  cd "$root" && find crates dialects languages spec docs examples agents dragonfly dragonfly-mobile dragonfly-backend \
+    dragonfly-web nuclear-vscode nuclear-jetbrains nuclear-zed nuclear-graph nuclear-developer README.md AGENTS.md \
+    \( -name target -o -name node_modules -o -name build -o -name .dart_tool -o -name .venv -o -name dist-test -o -name dist -o -name .pytest_cache -o -name __pycache__ -o -name .git -o -name results -o -name out \) -prune \
+    -o -type f \( -name '*.md' -o -name '*.nuc' -o -name '*.toml' -o -name '*.rs' -o -name '*.py' -o -name '*.ts' -o -name '*.json' \) -newer "$1" -print -quit 2>/dev/null
 }
 
 case "${1:-}" in
@@ -41,6 +50,20 @@ stop)
       printf '%s\n' "$files" | head -20
     } >&2
     exit 2
+  fi
+  # The knowledge base follows the tree (ADR-0104): a session that changed what it is made from leaves it built,
+  # reviewed and ingested.
+  graph="$root/nuclear-graph/.venv/bin/nuclear-graph"
+  if [ -x "$graph" ] && [ -n "$(touched "$marker")" ]; then
+    if ! out="$("$graph" knowledge check 2>&1)"; then
+      {
+        echo "The knowledge base (nuclear-developer/data) is behind the working tree. Before finishing:"
+        echo "nuclear-graph knowledge build; update or confirm (knowledge review) the rows it names; nuclear-graph ingest."
+        echo "A new tool, error, capability, limit or procedure gets its row (playbook:update-the-knowledge-base):"
+        printf '%s\n' "$out" | head -20
+      } >&2
+      exit 2
+    fi
   fi
   ;;
 esac

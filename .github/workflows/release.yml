@@ -17,7 +17,8 @@ permissions:
 env:
   ORG: nuclearlang
   # folder:repository of the repositories inside this one
-  INSIDE: dragonfly:dragonfly dragonfly-mobile:dragonfly-mobile dragonfly-backend:dragonfly-backend dragonfly-web:dragonfly-web nuclear-vscode:nuclear-vscode
+  # (the AI services ride in every archive, ADR-0106: the graph, the Developer and, inside it, its knowledge base)
+  INSIDE: dragonfly:dragonfly dragonfly-mobile:dragonfly-mobile dragonfly-backend:dragonfly-backend dragonfly-web:dragonfly-web nuclear-vscode:nuclear-vscode nuclear-graph:nuclear-graph nuclear-developer:nuclear-developer nuclear-developer/data:nuclear-knowledge
 
 jobs:
   archive:

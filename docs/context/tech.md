@@ -31,6 +31,11 @@ read-when: you need a command, a tool version, an SDK path on this machine, or h
   `dist/`) that the public installers `tools/release/install.sh` / `install.ps1` download (ADR-0101,
   `.github/workflows/release.yml`). Test an installer with a fake `HOME` and `NUCLEAR_DOWNLOAD=<local http server of
   dist/>`; never run `--uninstall` without the fake `HOME`.
+- The AI services (ADR-0106): the installation carries their code in `ai/` (from source: links to the tree's
+  `nuclear-graph/` and `nuclear-developer/`); `nuclear-loop setup` (or `./install.sh --ai`, or the editor's wizard)
+  installs and starts them. The machine's choice is `~/.config/nuclearlang/ai.env`; on Linux the services are the
+  systemd user units `nuclear-graph` and `nuclear-developer` (`systemctl --user restart nuclear-developer` after a
+  change to its code; `journalctl --user -u nuclear-developer -n 50`). `nuclear-loop setup --status`.
 - Project definitions cache: `~/.cache/nuclearlang/defs` (`nuclear_dialect::defs_cache_dir`).
 - User's test project: `~/Documents/projects/nuc/flutter/rick_and_morty`.
 - There is no global `tsc`: `nuclear-vscode/node_modules/.bin/tsc`.

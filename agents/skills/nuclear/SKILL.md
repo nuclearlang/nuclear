@@ -27,7 +27,12 @@ It says only what changes from TypeScript/Dart. Do not load the full spec (`nucl
 1. Dragonfly: generate a resource's finished code first (models, repository, a use case per action, the facade,
    the controller or the screen, tests): `dragonfly gen inspect`, then `dragonfly gen resource <component> <Name>
    --from-json <url|file> | --from-spec <spec.md> | --fields "id:int name:string"` (ADR-0103). Write by hand only
-   what is left. Create each other piece with its generator, so it lands in the right folder with the right kind:
+   what is left. A use case you wrote is wired by `dragonfly gen usecase <component> <Name> [--route "POST
+   orders/{id}/cancel"]` (its alias in the facade; backend: its route); one that only calls a repository method is
+   written by it too (`--calls <Repository>.<method>`). With the Nuclear MCP server, call `graph_strategy` first with
+   the request: it answers which kind of request it is (a resource, one screen, a rename, a failing test...) and the
+   plan of that kind. Create each other piece with its generator, so it lands in
+   the right folder with the right kind:
    `dragonfly make component|screen|usecase|repository|model|event|guard|widget|page|test ...` (`dragonfly help`).
 2. Write the code following the sheet. Copy the style of the project's existing `.nuc` files.
 3. Check until clean, and fix exactly what each error says (most carry a `fix`):

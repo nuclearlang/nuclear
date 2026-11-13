@@ -2,13 +2,13 @@
 # Installs NuclearLang from this repository: the `nuclear` and `dragonfly` CLIs, their dialects, type
 # definitions, specs and the dragonfly Dart package, the language server (nuclear-lsp, used by Zed), `nuclear-loop` (the
 # Loop without the editor, ADR-0102), plus the VS Code extension (which bundles its own copy of the LSP) and the Zed
-# extension. With --ai also the AI loop: nuclear-graph (the Smart Graph and the MCP server) and nuclear-developer.
+# extension. With --ai also the AI services, step by step (ADR-0106): the Smart Graph, the Nuclear Developer, the models.
 #
 #   ./install.sh                  install into ~/.local (PREFIX=/usr/local ./install.sh for another prefix)
 #   ./install.sh --no-vscode      without the VS Code extension
 #   ./install.sh --no-zed         without the Zed extension
 #   ./install.sh --no-agent       without the `nuclear` skill for AI agents
-#   ./install.sh --ai             also nuclear-graph and nuclear-developer (needs uv; Ollama runs the models)
+#   ./install.sh --ai             then `nuclear-loop setup`: a profile for this machine, the services at every login
 #   ./install.sh --uninstall      remove what an install created
 #
 # Layout: $PREFIX/share/nuclearlang/{bin,dialects,defs,spec,docs/dragonfly,packages/{dragonfly,dragonfly_genkit,dragonfly-py,dragonfly-nest,dragonfly-web},tools/defs} and links in $PREFIX/bin.
@@ -35,6 +35,8 @@ for arg in "$@"; do
     --no-agent) AGENT=0 ;;
     --ai) AI=1 ;;
     --uninstall)
+      # the AI services first (what starts them at login, the graph's tool): their set-up takes them away
+      [ -x "$BIN_DIR/nuclear-loop" ] && NUCLEAR_INSTALL="$HOME_DIR" NUCLEAR_BIN="$BIN_DIR" "$BIN_DIR/nuclear-loop" setup --remove >/dev/null 2>&1 || true
       rm -f "$BIN_DIR/nuclear" "$BIN_DIR/dragonfly" "$BIN_DIR/nuclear-lsp" "$BIN_DIR/nuclear-loop" "$BIN_DIR/nuclear-developer"
       command -v uv >/dev/null 2>&1 && uv tool uninstall nuclear-graph >/dev/null 2>&1 || true
       rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/zed/extensions/installed/nuclearlang"
@@ -72,23 +74,20 @@ ln -sf "$HOME_DIR/bin/dragonfly" "$BIN_DIR/dragonfly"
 ln -sf "$HOME_DIR/bin/nuclear-lsp" "$BIN_DIR/nuclear-lsp"
 if [ -f "$HOME_DIR/bin/nuclear-loop" ]; then ln -sf "$HOME_DIR/bin/nuclear-loop" "$BIN_DIR/nuclear-loop"; fi
 
+# from source the AI services are the working tree's own folders (stage.sh copied them): their set-up installs the
+# graph editable and builds the Developer in place
+if [ -d "$HOME_DIR/ai" ]; then
+  for d in nuclear-graph nuclear-developer; do
+    rm -rf "$HOME_DIR/ai/$d" && ln -s "$REPO/$d" "$HOME_DIR/ai/$d"
+  done
+fi
+
 if [ "$AI" = 1 ]; then
-  if ! command -v uv >/dev/null 2>&1; then
-    echo "note: --ai needs uv (https://docs.astral.sh/uv/); the AI loop skipped"
+  if [ ! -x "$BIN_DIR/nuclear-loop" ] || ! command -v node >/dev/null 2>&1; then
+    echo "note: --ai needs nuclear-loop (Node.js, and npm install in nuclear-vscode); the AI services skipped"
   else
-    echo "installing the AI loop (nuclear-graph, nuclear-developer)..."
-    uv tool install --force --quiet --editable "$REPO/nuclear-graph[server]"
-    (cd "$REPO/nuclear-developer" && "$BIN_DIR/dragonfly" build >/dev/null && "$BIN_DIR/dragonfly" install >/dev/null)
-    {
-      echo '#!/bin/sh'
-      echo "# The Nuclear Developer (ADR-0102), built from $REPO/nuclear-developer by install.sh --ai."
-      echo "cd \"$REPO/nuclear-developer/build\" && exec .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port \"\${NUCLEAR_DEVELOPER_PORT:-7879}\" \"\$@\""
-    } > "$BIN_DIR/nuclear-developer"
-    chmod +x "$BIN_DIR/nuclear-developer"
-    echo "AI loop: nuclear-graph and nuclear-developer in $BIN_DIR. The first time:"
-    echo "  ollama pull embeddinggemma && ollama pull qwen2.5-coder:3b && ollama pull gemma4:e2b"
-    echo "  nuclear-graph serve &  nuclear-graph knowledge build && nuclear-graph ingest $REPO/nuclear-developer/data"
-    echo "  nuclear-graph connect mcp --scopes read,write && nuclear-graph connect nuclear-developer --scopes read,write"
+    NUCLEAR_INSTALL="$HOME_DIR" NUCLEAR_BIN="$BIN_DIR" "$BIN_DIR/nuclear-loop" setup \
+      || echo "note: the AI services are not set up; when you want them: nuclear-loop setup"
   fi
 fi
 

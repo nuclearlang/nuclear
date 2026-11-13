@@ -27,6 +27,18 @@ A change is finished only when all of these hold:
    moment it is left).
 5. If a public API of `crates/` or the dialect format changed, `dragonfly/` is built too (its own workspace) and the
    LSP's tests run (`cargo test -p nuclear-lsp`).
+6. The knowledge base of the Smart Graph is in step with the change (ADR-0104; the end-of-turn hook runs the check):
+   - `nuclear-graph knowledge build`: the rows that have a structured source (a diagnostic, a kind or decorator, a
+     command, an MCP tool, a route, a version, an example, a document's section) are generated again;
+   - what is new and has no structured source gets its row written by hand in `nuclear-developer/data/assets/`: a
+     capability or a limit (`capabilities`), a failure or a pitfall (`errors`), a procedure, a role or a skill
+     (`playbooks`), an idea (`concepts`); a new diagnostic's relations and right example go in
+     `assets/errors/diagnostics.overlay.json`;
+   - each `review:` line it prints names a hand-written row whose source changed: update the row, or confirm it with
+     `nuclear-graph knowledge review <id>`;
+   - the question the change answers is added to `questions.toml`;
+   - `nuclear-graph knowledge check` is clean, `nuclear-graph ingest` teaches the graph the new revision and
+     `nuclear-graph knowledge ask` finds every question's row.
 
 ## Spec rules
 

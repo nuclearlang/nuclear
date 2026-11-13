@@ -22,7 +22,10 @@ generated code as fast as an expert's, instant transpilation, minimal readable N
    or "pending" in specs: doubts go to the chat; decisions become ADRs.
 4. Every new diagnostic code is documented in `spec/diagnostics.md`; every dialect word in its `docs.toml`.
 5. Done = tests + clippy green, docs updated in the same change, `STATUS.md` updated
-   ([docs/context/workflow.md](docs/context/workflow.md)). Golden output changed → `UPDATE_GOLDEN=1` + review.
+   ([docs/context/workflow.md](docs/context/workflow.md)), **and the knowledge base in step with it** (ADR-0104):
+   `nuclear-graph knowledge build`, a row written for what is new and has no structured source (a capability, a limit,
+   a failure, a procedure), `nuclear-graph knowledge check` clean, `nuclear-graph ingest`. The end-of-turn hook runs the
+   check. Golden output changed → `UPDATE_GOLDEN=1` + review.
 6. **`STATUS.md` is the only list of state and pending work** for the whole platform. Every task (also a
    report) ends with a Log line and current lists; half-done work is recorded the moment it is left. Hooks in
    `.claude/settings.json` check it.
@@ -67,7 +70,7 @@ generated code as fast as an expert's, instant transpilation, minimal readable N
 | `dragonfly-web`: the web platform; dialect `react` + TypeScript runtime | `dragonfly-web/` (its own repository inside this one, plan 006): `dialects/web/react/` `packages/dragonfly-web/` `spec/{web,react}.md` | [dragonfly-web/docs/context/dragonfly-web/CONTEXT.md](https://github.com/nuclearlang/dragonfly-web/blob/main/docs/context/dragonfly-web/CONTEXT.md) |
 | `dragonfly` CLI | `dragonfly/` (its own repository inside this one: `dragonfly/` crate, `docs/dragonfly/{README,kinds,tutorial}.md`, `docs/context/{dragonfly,cli}/`) | [docs/context/cli/CONTEXT.md](https://github.com/nuclearlang/dragonfly/blob/main/docs/context/cli/CONTEXT.md) |
 | LSP and editor extensions | `crates/nuclear-lsp`, `nuclear-vscode/` (with `theme/`), `nuclear-jetbrains/`, `nuclear-zed/` (each its own repository inside this one) | [docs/context/editors/CONTEXT.md](docs/context/editors/CONTEXT.md) |
-| AI: the private knowledge base (RAG) + the MCP server; the local 3B agents | `nuclear-graph/`, `nuclear-developer/`, `nuclear-developer/data/` (the knowledge base, generated: `nuclear-graph knowledge build`) (each its own repository inside this one; ADR-0102); the Loop tool is in `nuclear-vscode/` | [nuclear-graph/README.md](nuclear-graph/README.md), [nuclear-developer/README.md](nuclear-developer/README.md), [nuclear-developer/data/README.md](nuclear-developer/data/README.md) |
+| AI: the Smart Graph (the library every agent reads, ADR-0104) + the MCP server; the local 3B agents | `nuclear-graph/`, `nuclear-developer/`, `nuclear-developer/data/` (the knowledge base: `assets/` by shelf, built by `nuclear-graph knowledge build`, checked by `knowledge check`) (each its own repository inside this one; ADR-0102); the Loop tool is in `nuclear-vscode/` | [nuclear-graph/README.md](nuclear-graph/README.md), [nuclear-developer/README.md](nuclear-developer/README.md), [nuclear-developer/data/README.md](nuclear-developer/data/README.md) |
 | Website | the `website` repository (Nuclear, Dragonfly web; today `~/Documents/projects/nuc/react/nuclearlang_website`) | [docs/context/website/CONTEXT.md](https://github.com/nuclearlang/website/blob/main/docs/context/website/CONTEXT.md) |
 | Why a rule exists | — | [docs/adr/README.md](docs/adr/README.md) |
 | What is done / pending | — | [STATUS.md](STATUS.md) |

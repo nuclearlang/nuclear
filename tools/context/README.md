@@ -7,6 +7,7 @@
 |---|---|---|
 | `session` | `SessionStart` | lists the work files (code, dialects, specs, tools) newer than `STATUS.md`: work of another session that was not recorded |
 | `stop` | `Stop` | if the session changed work files after the last edit of `STATUS.md`, it does not let the turn end (once per turn) and asks to update it |
+| `stop` | `Stop` | if the session changed anything the knowledge base is made from (sources, docs, dialects, the agents), it runs `nuclear-graph knowledge check` (ADR-0104) and does not let the turn end while the base is behind the tree: build, review the rows it names, ingest |
 
 The session is marked with a file in `$XDG_RUNTIME_DIR` (`nuclear-context-<session_id>`), so the `stop` mode only
 looks at what changed since it started. It does not look at `docs/` nor the context `.md` files: changing only
@@ -16,5 +17,5 @@ Testing it by hand:
 
 ```sh
 echo '{"session_id":"t"}' | tools/context/check.sh session
-echo '{"session_id":"t"}' | tools/context/check.sh stop; echo $?   # 2 = STATUS.md needs an update
+echo '{"session_id":"t"}' | tools/context/check.sh stop; echo $?   # 2 = STATUS.md needs an update, or the knowledge base is behind
 ```

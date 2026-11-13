@@ -46,6 +46,15 @@ and look them up, or ask.
      source the platform has no pieces for (mobile and web read APIs; a database resource is backend only). The
      `Http` connection is added from the platform's `[gen] http` (or `http_named`, a named one, when the app has
      another), and the repository then names it.
+   - `gen usecase <component> <Name>` (2026-11-12) wires a use case into its component: its alias in the facade and,
+     on the backend, with `--route "POST orders/{id}/cancel"`, its route in the controller of the route's prefix (made
+     when missing; a `{name}` of the path must be a parameter of the use case). The signature is read from the
+     project, never typed again: a use case with rules of its own is written first (by hand or by the coder) and this
+     wires it, calling it with `~` only when its `exec` awaits; `--calls <Repository>.<method>` writes the use case
+     too, because one that only calls a repository method follows from that method (a method that answers no `Result`
+     goes inside an `Ok`: backend). A use case that is neither declared nor given `--calls` is refused with the place
+     and the form to write it: a use case with a hole in it would be a placeholder. What a screen shows of a use case
+     (a state manager's method and its state) is the interface, written by hand.
    - `gen inspect`: what the project has (components, declarations by kind) as JSON, so an agent checks before it
      generates. `gen screen` is `dragonfly make screen` (mobile, web): a resource's list screen comes with
      `gen resource --screen`.
@@ -56,7 +65,7 @@ and look them up, or ask.
    `@post`, `@put`, `@patch`, `@delete` and no body calls the `Http(baseUrl)` connection (path parameters `:id`, the
    others in the query or the body; an error status is the `Err` of a `Result`), in fastapi and nestjs.
 4. **The MCP exposes the generators and what the model needs to fill them**: `project_inspect`, `generate_component`,
-   `generate_resource`, `generate_screen`, `api_inspect` (fetches a URL and answers its JSON's shape and the files it
+   `generate_resource`, `generate_usecase`, `generate_screen`, `api_inspect` (fetches a URL and answers its JSON's shape and the files it
    implies), `web_search` and `web_read` (the API's documentation); its instructions tell the client to generate
    first and give `developer_task` only what is left.
 5. **The Loop generates before it writes**: a *Generate* stage between the spec and the plan runs `dragonfly gen
@@ -71,6 +80,11 @@ and look them up, or ask.
   generated tests (a test there would call the real API), and the local tester's own test of such a resource is often
   wrong; the nestjs HTTP repository answers the API's JSON as it came (a use case that reads a renamed field gets
   `undefined`).
+- Found while delivering `gen usecase` (2026-11-12): a generator appends a route to a controller, so the order of a
+  controller's routes cannot decide which one answers. Both backend runtimes now add a fixed segment before a
+  parameter (`search` before `{id}`), whatever the order in the `.nuc`; before, fastapi added them by method name
+  (the `search` route of a generated resource was taken by `{id}`) and nestjs in the order written. A merge
+  (`merge = true`) adds whole members, told by their head line, so a route keeps its decorator and its body.
 
 - A standard feature costs no model tokens; the local 3B model only fills what is specific, where it does well.
 - Each platform keeps generator templates next to its kinds; a new kind or decorator must update them (a test builds

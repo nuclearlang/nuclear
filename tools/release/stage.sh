@@ -1,6 +1,6 @@
 #!/bin/sh
 # Assembles an installation of NuclearLang in <dest>, the layout the binaries expect (nuclear_dialect::install_dir):
-#   bin/  dialects/  defs/  spec/  docs/dragonfly/  kinds/  packages/  tools/defs/  agents/skills/
+#   bin/  dialects/  defs/  spec/  docs/dragonfly/  kinds/  packages/  tools/defs/  agents/skills/  ai/
 # from every source root of the working tree (this repository and the platform repositories inside it, plan 006).
 # Used by install.sh (from source) and by tools/release/package.sh (the archives the installers download).
 #
@@ -53,3 +53,15 @@ done
 # the skill AI agents read (install.sh and the installers copy it into the agents' folders)
 mkdir -p "$DEST/agents"
 cp -R "$REPO/agents/skills" "$DEST/agents/"
+# the AI services (ADR-0106): the code of the Smart Graph and of the Nuclear Developer with its knowledge base. Their
+# set-up (nuclear-loop setup, the editor) makes the environments, downloads the models and starts them.
+if [ -f "$REPO/nuclear-graph/pyproject.toml" ] && [ -f "$REPO/nuclear-developer/config.nuc" ]; then
+  mkdir -p "$DEST/ai/nuclear-graph" "$DEST/ai/nuclear-developer"
+  for f in pyproject.toml README.md LICENSE src; do cp -R "$REPO/nuclear-graph/$f" "$DEST/ai/nuclear-graph/"; done
+  for f in config.nuc components config defs data README.md LICENSE; do
+    cp -R "$REPO/nuclear-developer/$f" "$DEST/ai/nuclear-developer/"
+  done
+  # the knowledge base is a repository of its own in the working tree
+  rm -rf "$DEST/ai/nuclear-developer/data/.git"
+  find "$DEST/ai" -name __pycache__ -type d -exec rm -rf {} +
+fi
