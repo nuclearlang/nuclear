@@ -767,7 +767,11 @@ comparison tables.
   Found: a library member on an `any` receiver loses its named argument ("Pending: nuclear"). Docs: ADR-0104 §3,
   ADR-0106 §9, `spec/python.md`, the emitter's context, the graph's README, the CHANGELOGs of nuclear, nuclear-graph
   and nuclear-developer, `concept:smart-graph`, `failure:no-access-to-the-graph`. Then pushed (asked by the user:
-  "sube los cambios en todos los proyectos que aun no se han actualizado"): see the entry's repositories in git.
+  "sube los cambios en todos los proyectos que aun no se han actualizado"), with the work of 2026-11-13 the AI-loop
+  session had left uncommitted: nuclear, dragonfly-backend, nuclear-graph, nuclear-knowledge, nuclear-developer,
+  nuclear-vscode, nuclear-jetbrains, nuclear-zed (the other repositories had nothing pending). Before: the staged
+  lines scanned for e-mails, home paths and keys (none), nuclear-vscode `npm test` 33 + tsc, nestjs-check. CI green
+  in the four that have one (nuclear, dragonfly-backend, nuclear-vscode, nuclear-zed).
 - 2026-11-13 · nuclear-developer session · **The chat answered "que es nuclear lang?" with every command of `nuclear`
   (reported by the user with a screenshot).** Cause: the graph's planner ran a query of the exact facts whenever the
   question wrote a name a query takes ("nuclear" is a tool and a component) and was within the loose `NAMED` distance
