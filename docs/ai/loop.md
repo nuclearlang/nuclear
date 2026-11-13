@@ -62,11 +62,14 @@ Every run is kept in `.nuclear/loop/runs/<id>.json`, the same file each editor d
 
 ## 3. Follow the run
 
-The run is a pipeline you can zoom into like a C4 diagram:
+The run is drawn as a graph, left to right:
 
-- **Level 1**, the stages: Specification → Generate → Plan → Tests first → Code → Verification → Security → Artifacts →
-  Deploy. Each shows its
-  state, its time and the agents that took part.
+- **A column per stage**: Specification → Generate → Plan → Tests first → Code → Verification → Security → Artifacts →
+  Deploy. Each shows its state, its time and the agents that took part; a stage the strategy leaves out says why.
+- **A node per step**, in the order it ran, and under it the steps its agent followed (recall from the graph, with
+  the cards it read by name → write → repair with the compiler).
+- **Click a node** and it opens beside the graph: what it did, **the decisions it took and why** (which strategy and
+  by which signs, why a piece was dropped or a file went to the tester), its input, its output and its code.
 - **Specification** ends with the **analysis**: which kind of request the spec is and the strategy the run follows
   ([the strategy of a request](#the-strategy-of-a-request)). The step says what it understood and why; a fact it
   lacks is asked there, before anything is written.
@@ -82,11 +85,18 @@ The run is a pipeline you can zoom into like a C4 diagram:
   of the spec is beyond the platform or the local agents (the graph's capabilities whose trigger words the spec
   writes: "authentication" on a backend, "form" on the web; a spec too long for a local model; a plan without pieces):
   split the task, give the missing facts, or let a frontier model lead.
-- **Tests first** is skipped when the generators wrote every file of the run: they wrote its tests too.
-- Click a stage for **level 2**, its steps: each piece the coder wrote, each command the shell ran, each tool Claude
-  called.
-- Click a step for **level 3**, what that agent did: its trace (recall from the graph → write → repair with the
-  compiler), the code, the output, the input. `Escape` zooms out.
+- **Tests first** is skipped when the generators wrote every file of the run: they wrote its tests too, and the step
+  says which. A resource that reads another API gets no generated test (it would call the real one): the step says
+  so, and only the acceptance step holds the criteria against the result.
+- **Anything runs again.** *Run again from this step* on every step, passed or failed: it and every step after it
+  run again, the steps before it are kept. *Run <stage> again* on every stage. *Run again from scratch* on the run:
+  the whole pipeline from the specification. What the steps left out wrote is undone first; a file you changed since
+  the run wrote it is kept, and the page says so. The attempt left behind stays under the run with its reason. From a
+  terminal: `nuclear-loop retry <run> [--from <stage> | --step <id>]`, `nuclear-loop restart <run>`. A run made by an
+  older version of the Loop starts from scratch at any retry.
+- **Acceptance.** When the verification passes, each acceptance criterion is held against what the run left: the
+  ones the result does not show met are listed as left for the reviewer (in the page and in the journal). It informs;
+  it does not fail the run.
 
 | Actor | Does | Does not |
 |---|---|---|

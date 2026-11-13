@@ -789,3 +789,31 @@ fn the_project_map_describes_each_component() {
     assert!(map.contains("`@minLength(1) message: string`"), "{map}");
     assert!(!map.contains("def ") && !map.contains("async "), "only Nuclear: {map}");
 }
+
+/// A library is imported by its own name: `[project] package` of `nuclear.toml` is the folder its files go to and
+/// the name they import each other by, instead of the dialect's `app`.
+#[test]
+fn a_project_names_its_package() {
+    let root = std::env::temp_dir().join(format!("nuclear-project-package-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let files = [
+        ("nuclear.toml", "[project]\nname = \"graph_lib\"\ndialect = \"python\"\npackage = \"graph_lib\"\n"),
+        ("paths.nuc", "home() string\n  \"/tmp\"\n"),
+        ("store/rows.nuc", "Rows(file: string)\n  where() string\n    \"${home()}/${file}\"\n"),
+    ];
+    for (rel, text) in files {
+        let path = root.join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+    let manifest = Manifest::read(&root).unwrap();
+    assert_eq!(manifest.package.as_deref(), Some("graph_lib"));
+    let d = loader(None).load("python").0.unwrap();
+    let out = project::build(&root, &manifest, &d);
+    let rows = out.files.iter().find(|f| f.source_path.ends_with("rows.nuc")).unwrap();
+    assert_eq!(rows.out_path, "graph_lib/store/rows.py");
+    assert!(rows.code.contains("from graph_lib.paths import home"), "{}", rows.code);
+    std::fs::write(root.join("nuclear.toml"), "[project]\nname = \"graph_lib\"\ndialect = \"python\"\npackage = \"Graph-Lib\"\n").unwrap();
+    assert!(Manifest::read(&root).unwrap_err().contains("must be snake_case"));
+    let _ = std::fs::remove_dir_all(&root);
+}

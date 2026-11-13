@@ -56,6 +56,15 @@ generated code as fast as an expert's, instant transpilation, minimal readable N
     asked for as a generic one); a package belongs to one platform, and one implemented for some of its dialects ties
     the project to them, like type definitions. The editor shows where every kind comes from and lists only the
     kinds of the project's platform.
+12. **Nuclear and Dragonfly first** (decided by the user, 2026-11-13). Every new development of the platform (a
+    service, a tool, a library, an agent, a script that stays) is written in Nuclear: with Dragonfly when one of its
+    platforms fits (a backend, a mobile app, a web app), with a base dialect (`python`, `typescript`...) when none
+    does (a library, a command line tool: `nuclear.toml`, `nuclear build`). Another language only where Nuclear
+    cannot be the source yet (the compiler and the language server in Rust, an editor's extension host), and then
+    `STATUS.md` says what Nuclear lacks for it. What the language cannot express while doing so is a finding of the
+    compiler, recorded in `STATUS.md` ("Pending: nuclear"), never a reason to write the piece in the target
+    language. What already exists in another language is migrated only when the user asks (`nuclear-graph` was, in
+    2026-11: it is a Nuclear project of the `python` dialect).
 
 ## Where things are (open only what the task needs)
 

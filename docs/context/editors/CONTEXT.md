@@ -11,7 +11,7 @@ The editor tooling, split by repository (plan 006): the server is `crates/nuclea
 icons the other two read), `nuclear-jetbrains/` and `nuclear-zed/`, each its own git inside the working tree; the
 Dragonfly parts move later to `dragonfly-flutter-vscode` / `dragonfly-flutter-jetbrains` (ADR-0083). Extensions run
 `nuclear-lsp` as an external binary and talk to it only through LSP (+ `nuclear/*` requests). Installed version:
-**0.48.0** (all three; the Loop in VS Code and Android Studio only, ADR-0102). No commits unless the user asks.
+**0.49.0** (all three; the Loop in VS Code and Android Studio only, ADR-0102). No commits unless the user asks.
 
 ## Rules
 

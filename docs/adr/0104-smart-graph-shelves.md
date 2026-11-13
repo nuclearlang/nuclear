@@ -74,7 +74,12 @@ it has no keyword index of its own. An empty list is refused.
    whatever its language. Entries are ranked together, each card once; a `docs` row yields to a card (0.04) and a
    document gives at most two sections. `expand` adds to each card the title and summary of the rows it links to.
    Filters: `agents`, `platform`, and any metadata (`type`, `kind`, `code`). A card is also read by id
-   (`GET /v1/cards/{id}`, `nuclear-graph card`, MCP `graph_card`).
+   (`GET /v1/cards/{id}`, `nuclear-graph card`, MCP `graph_card`). **The search is exact** (2026-11-13): the vector
+   Chroma keeps of every item a filter matches is compared with the query's (`Store.near`, `Store.measure`); Chroma's
+   own index (HNSW) is not asked. It is approximate, and once rows were replaced it did not reach every item it held:
+   after an ingest 3 cards of 2 617 could not be found, and which ones changed at every start. A shelf holds hundreds
+   of items, so comparing them all costs milliseconds (173 questions in 42 s, the embedding of each included). A
+   result's `distance` is the closest the card came by meaning, by its text or by any question it answers.
 
 4. **Two readers, one flag.** `agents: false` marks what only frontier models and people read: the target languages,
    the dialects underneath, the runtimes, the decisions, the state. A row the local agents read holds no code of a
@@ -123,7 +128,7 @@ it has no keyword index of its own. An empty list is refused.
 10. **Retrieval is tested with people's questions.** `questions.toml` of the knowledge base lists questions and
     the row each must return among the first (English and Spanish); `nuclear-graph knowledge ask` runs them against
     the running graph. A question a change answers is added with the change. Every ```nuclear block of a hand-written
-    row is compiled by `nuclear-graph/tests/check_examples.py`.
+    row is compiled by `nuclear-graph knowledge examples`.
 
 ## Consequences
 

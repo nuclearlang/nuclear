@@ -57,7 +57,9 @@ cp -R "$REPO/agents/skills" "$DEST/agents/"
 # set-up (nuclear-loop setup, the editor) makes the environments, downloads the models and starts them.
 if [ -f "$REPO/nuclear-graph/pyproject.toml" ] && [ -f "$REPO/nuclear-developer/config.nuc" ]; then
   mkdir -p "$DEST/ai/nuclear-graph" "$DEST/ai/nuclear-developer"
-  for f in pyproject.toml README.md LICENSE src; do cp -R "$REPO/nuclear-graph/$f" "$DEST/ai/nuclear-graph/"; done
+  # the graph is written in Nuclear: its sources travel, and its set-up builds them (`nuclear build`) before installing
+  for f in pyproject.toml nuclear.toml README.md LICENSE prompts; do cp -R "$REPO/nuclear-graph/$f" "$DEST/ai/nuclear-graph/"; done
+  cp "$REPO"/nuclear-graph/*.nuc "$DEST/ai/nuclear-graph/"
   for f in config.nuc components config defs data README.md LICENSE; do
     cp -R "$REPO/nuclear-developer/$f" "$DEST/ai/nuclear-developer/"
   done

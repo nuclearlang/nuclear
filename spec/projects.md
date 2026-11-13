@@ -30,6 +30,9 @@ A project of a language dialect without Dragonfly uses `nuclear.toml`:
 name = "rick_demo"      # name of the generated package, in snake_case
 dialect = "python"      # a language dialect: typescript, dart, python
 out = "build"           # output folder, relative to the project (default: build)
+package = "rick_demo"   # optional: the folder the files go to and the name they import each other by, instead of
+                        # the dialect's `[project] sources` (`app` in Python); snake_case. A library sets it, so
+                        # other code imports it by its own name: `from rick_demo.models.user import User`
 
 [dependencies]          # packages of the target's package manager the project uses
 httpx = "0.28"
@@ -126,7 +129,8 @@ Example: `examples/examples-flutter-dialect/tasks_app` over `examples/examples-b
 - A name is declared only once in the whole project (`N0303`).
 - Every name declared in a file can be used in the others without `use`: the transpiler writes the import
   of the file that declares it. The dialect's `project_import` template gives the import path (Dart:
-  `package:{{project}}/{{path}}.dart`).
+  `package:{{project}}/{{path}}.dart`; Python: `{{package}}.{{path}}`, where `package` is the folder the files go
+  to: the manifest's `package`, else the dialect's `sources`).
 - A file is imported only if the generated code uses one of its names (comments and the text of strings do
   not count; their interpolations do).
 - What holds for the declarations of one file holds across files: `Result` propagation, aliases

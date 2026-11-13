@@ -49,7 +49,7 @@ import_default = "import {{module}}"
 import_file = "import {{path}}"
 module_path = "{{path}}"
 file_path = "{{path}}"
-project_import = "app.{{path}}"
+project_import = "{{package}}.{{path}}"
 
 # --- declarations ---
 export = ""
@@ -140,7 +140,7 @@ while {{cond}}:
 try = """
 try:
     {{body}}{{#catch}}
-except Exception as {{catch_var}}:
+except Exception{{#catch_used}} as {{catch_var}}{{/catch_used}}:
     {{catch_body}}{{/catch}}{{#finally}}
 finally:
     {{finally_body}}{{/finally}}"""
@@ -294,7 +294,8 @@ static = ""
 get = ""
 set = { prefix = "", void = true }   # a setter never returns
 
-# projects (spec/projects.md): the .nuc files go to the package app (from app.models.user import User)
+# projects (spec/projects.md): the .nuc files go to the package app (from app.models.user import User), or to the
+# one nuclear.toml names ([project] package = "my_lib": from my_lib.models.user import User)
 [project]
 sources = "app"
 

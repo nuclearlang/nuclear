@@ -58,6 +58,8 @@ module re-exports it (`[reexports]`).
   `tinfo`: TS writes `typeof`/`Number.isInteger`/`Array.isArray`). `for_entries` gets `map`. Constructed
   `Map/Set/List<...>()` locals record their type.
 - `try` as the last line returns the last line of `try` and `catch` (`try_stmt` with the tail).
+- The `try` template gets `catch_used` when the `catch` block names the caught value (`contains_word` over the emitted
+  block): Python binds no name otherwise (`except Exception:`).
 - Dart top level (`toplevel_main`): statements go in a generated `main`; a variable that a declaration uses
   stays top-level; other statements plus an own `main` → N0113.
 - `if` in lists → `list_if`. Cascades → `cascade` + `cascade_self` (Dart "", TS "$"); with
@@ -103,7 +105,9 @@ generated code writes it (`written_words`). Methods of a base from the type defi
 from `ClassDef.results` (index.json), so `x = ~repo.find(id)` unwraps; an error type that extends the function's
 (`NotFound` of `AppError`, `is_subtype`) propagates without N0109. A kind's `inherits` count as bases.
 
-ADR-0091: `project_import` gets `relative` (from the output file to the import, `ProjectCtx::relative`);
+ADR-0091: `project_import` gets `relative` (from the output file to the import, `ProjectCtx::relative`) and `package`
+(the folder the project's files go to as a module: `Manifest::sources`, the `[project] package` of `nuclear.toml`, else
+the dialect's `sources`; Python writes `{{package}}.{{path}}`);
 `alias_via = "constructor"` (alias.rs adds the target modules as constructor parameters and calls `field.method`);
 `params_list` entries get `route` (named in a decorator's route string, `route_params`); kinds get `field_decor`;
 `field` gets `tinfo`; `methods` entries get `doc_text`/`doc_literal`; project templates get `components` and `uses`;

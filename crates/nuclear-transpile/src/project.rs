@@ -37,6 +37,9 @@ pub struct Manifest {
     pub out: String,
     /// Packages of the target's package manager the app needs (name → version).
     pub dependencies: BTreeMap<String, String>,
+    /// `[project] package` of `nuclear.toml`: the folder the files go to and the name they import each other by,
+    /// instead of the dialect's `[project] sources` (`app`). A library is imported by its own name.
+    pub package: Option<String>,
 }
 
 impl Manifest {
@@ -76,7 +79,13 @@ impl Manifest {
             title: String::new(),
             out: out.into(),
             dependencies: BTreeMap::new(),
+            package: None,
         }
+    }
+
+    /// Where the project's files go inside the output folder: its `package`, else the dialect's `sources`.
+    pub fn sources(&self, dialect: &Dialect) -> String {
+        self.package.clone().unwrap_or_else(|| dialect.project.sources.clone())
     }
 
     /// The manifest of a Dragonfly project: `config.nuc` with `dragonfly(platform = ..., dialect = ...)` and,
@@ -166,6 +175,14 @@ impl Manifest {
             .and_then(|v| v.as_table())
             .map(|d| d.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("any").to_string())).collect())
             .unwrap_or_default();
+        let package = get("package");
+        if let Some(package) = &package
+            && (package.is_empty()
+                || package.starts_with(|c: char| c.is_ascii_digit())
+                || !package.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'))
+        {
+            return Err(format!("{}: package '{package}' must be snake_case (letters, digits, _)", path.display()));
+        }
         Ok(Manifest {
             name,
             dialect: get("dialect").ok_or(format!("{}: [project] needs dialect", path.display()))?,
@@ -175,6 +192,7 @@ impl Manifest {
             title: get("title").unwrap_or_default(),
             out: get("out").unwrap_or_else(|| "build".into()),
             dependencies,
+            package,
         })
     }
 }
@@ -637,7 +655,7 @@ pub fn build(root: &Path, manifest: &Manifest, dialect: &Dialect) -> ProjectOutp
             })
             .collect(),
         isolated: dialect.project.outputs.iter().map(|(from, _)| from.clone()).collect(),
-        sources: dialect.project.sources.clone(),
+        sources: manifest.sources(dialect),
         outputs: dialect.project.outputs.clone(),
         plugins: (!dialect.project.plugins.is_empty()).then(|| enabled_plugins(root, dialect).into_iter().collect()),
         ..Default::default()
@@ -679,7 +697,7 @@ pub fn build(root: &Path, manifest: &Manifest, dialect: &Dialect) -> ProjectOutp
         }
         modules.extend(alias::modules(file));
     }
-    let sources_dir = dialect.project.sources.clone();
+    let sources_dir = manifest.sources(dialect);
     for f in &dialect.project.files {
         let rel = f.path.strip_prefix(&format!("{sources_dir}/")).unwrap_or(&f.path);
         let path = Path::new(rel).with_extension("").to_string_lossy().replace('\\', "/");
@@ -947,6 +965,7 @@ fn project_context(
             .map(|t| {
                 let c = Ctx::new()
                     .set("project", &ctx.name)
+                    .set("package", ctx.sources.replace('/', &d.options.module_separator))
                     .set("path", path.replace('/', &d.options.module_separator))
                     .set("relative", ctx.relative(from_out, path));
                 t.render(&c.into_value())

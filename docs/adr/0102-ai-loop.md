@@ -103,8 +103,8 @@ answers are equivalent.
     (`.nuclear/loop/runs/<id>.md`, `journalMarkdown`) and the local documenter (`POST /developer/document`) writes its
     summary of what it did at the top.
 15. **The agents' prompts are files** (asked by the user, 2026-11-11): every prompt a local model reads is a markdown file
-    of the graph (`prompts/agents/<step>.md`, `{{name}}` placeholders, an empty section dropped), served as the prompt
-    `agent.<step>`; the agents' code holds no prompt text.
+    of the graph (`prompts/agents/<step>.md`, `{{name}}` placeholders, a section whose values are all empty dropped),
+    served as the prompt `agent.<step>`; the agents' code holds no prompt text.
 16. **A chat with the local agents in the editor** (asked by the user, 2026-11-11): the workspace tool *Nuclear agent*
     (VS Code) talks to the Developer's assistant (`POST /developer/chat`) about the active project; `/task` runs the
     Loop with the local agents; templates from the project's map; sessions in `.nuclear/chat/`.
@@ -146,6 +146,25 @@ answers are equivalent.
     integration is a setting with its default (`nuclear.ai.claude.*`, `codex.*`, `opencode.*`, `cursor.mcpFile`,
     `github.command`, `jira.site|email|criteriaField`, `watch.*`); only secrets (the Jira token) live in the secret
     storage.
+
+23. **Anything of a run can run again, and a run says what it decided** (asked by the user, 2026-11-13: "I cannot
+    retry a step whether it passed or failed; it must always be possible to retry anything; the logs say nothing; show
+    the steps the agent followed and the decisions it took and why, as a graph, and a click on a node shows it"; "or
+    the option to run the whole pipeline from scratch"). **Retries**: any step, passed or failed, runs again with
+    every step after it (the steps before it are kept); any stage runs again whole; the run runs again from scratch.
+    What the steps left out wrote is undone first (the write ledger keeps each file's content after the write: a file
+    changed since is kept and said), and the attempt left behind is kept with its reason (`previous`). A run saved by
+    an older engine (`Run.engine`) is given today's stages and starts from scratch at any retry: its plan and its
+    files answer to a pipeline that no longer exists. A plan made again drops the pieces a planner gave and keeps the
+    ones the user wrote. `nuclear-loop retry <run> [--from <stage> | --step <id>]`, `nuclear-loop restart <run>`, MCP
+    `developer_retry(run, from_stage, from_step, scratch)`. **Decisions**: every step keeps what it chose and why
+    (`Step.decisions`: the strategy and the signs it was recognised by, a stage left out, a piece dropped because a
+    generator wrote it, a file sent to the tester, a repair given to the frontier model), and the agents' recall
+    steps name the cards they read. **The page is a graph**: a column per stage, a node per step in the order it ran,
+    the steps its agent followed under it; a click opens the node beside the graph (what it did, its decisions, its
+    input, output and code). **Acceptance**: when the verification passes, each acceptance criterion is held against
+    what the run left (`POST /developer/accept`); the ones not shown met are listed as left for the reviewer. It
+    informs, it never fails a run: a 3B model's verdict is evidence for a person, not a gate.
 
 ## Consequences
 

@@ -27,7 +27,8 @@
 - **Type definitions:** `defs = ["python@3.14"]`: builtins (implicit), `typing`, `dataclasses`, `enum`, `abc`,
   `collections`, `functools`, `itertools`, `datetime`, `time`, `json`, `re`, `math`, `random`, `decimal`, `uuid`,
   `pathlib`, `os`, `logging`, `asyncio`, `contextlib`. Generator: `tools/defs/python/` (any installed package).
-- **Projects** (`nuclear.toml` with `dialect = "python"`): the files go to the package `app/` and import each other
+- **Projects** (`nuclear.toml` with `dialect = "python"`): the files go to the package `app/` (or to the one
+  `[project] package = "my_lib"` names: a library is imported by its own name) and import each other
   as `from app.<path> import Name`.
 
 ## 2. Emitter options this dialect uses
@@ -354,7 +355,8 @@ def lookup(names: dict[str, str], key: str) -> str:
 
 ### 3.12 Errors
 
-`throw` is `raise`; `catch` catches `Exception`.
+`throw` is `raise`; `catch` catches `Exception`. A `catch` whose block does not name the caught value binds none
+(`except Exception:`): a name nothing reads is an error of pyright's strict mode.
 
 ```nuclear
 safe() string
@@ -374,6 +376,26 @@ def safe() -> str:
         return "ok"
     except Exception as err:
         return f"failed: {err}"
+```
+
+```nuclear
+ready() boolean
+  try
+    risky()
+    true
+  catch
+    false
+```
+
+```python
+from __future__ import annotations
+
+def ready() -> bool:
+    try:
+        risky()
+        return True
+    except Exception:
+        return False
 ```
 
 ### 3.13 Result

@@ -1282,7 +1282,11 @@ impl<'a> Emitter<'a> {
             }
             for path in paths {
                 let relative = p.relative(&p.out_stem(&self.file_path), &path);
-                let ctx = Ctx::new().set("project", &p.name).set("path", self.sep(&path)).set("relative", relative);
+                let ctx = Ctx::new()
+                    .set("project", &p.name)
+                    .set("package", self.sep(&p.sources))
+                    .set("path", self.sep(&path))
+                    .set("relative", relative);
                 let module = self.tpl("project_import", ctx, Span::default());
                 let mut names = names_by_path.remove(&path).unwrap_or_default();
                 names.sort();
@@ -3881,7 +3885,8 @@ impl<'a> Emitter<'a> {
                 }
                 (out, e.stmts(&b.stmts, tail))
             });
-            ctx = ctx.flag("catch", true).set("catch_var", out).set("catch_body", cb);
+            // `catch_used`: the block names the caught value (a target that reports an unused name binds none)
+            ctx = ctx.flag("catch", true).flag("catch_used", contains_word(&cb, &out)).set("catch_var", out).set("catch_body", cb);
         }
         if let Some(b) = &t.finally {
             let fb = self.block(b, &Tail::None);

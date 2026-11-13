@@ -85,7 +85,12 @@ machine: 9.7 GB, of which the assistant's model is 7.2 GB and leaves a 16 GB mac
    units on Linux (`nuclear-graph`, `nuclear-developer`, restarted when they fail), two launch agents on macOS, a
    script in the Startup folder on Windows. The editor's Start and Restart go through them. A system without a user
    service manager gets the services started now and is told so. A service started by hand that holds the port stops
-   the set-up with the command that stops it.
+   the set-up with the command that stops it. **A service that starts at login runs before the keyring opens**
+   (seen 2026-11-13: the graph found no owner's token, made another one in a file, and the user's tools, which read
+   the keyring's, were answered 401). The graph writes down the names of the secrets its keyring keeps (`.keyring` of
+   its data folder, no secret in it): a keyring that does not answer for one of them is closed, so the secret is
+   waited for (90 s) and then refused, and the unit starts again until the keyring opens. No second secret is ever
+   made, and a file made while the keyring was closed is not read.
 
 10. **An update keeps the choice.** The environments live inside the installation, so an installer that replaces it
     runs the set-up again with the profile the machine has, without questions. `--no-ai` skips it, `--profile <id>`

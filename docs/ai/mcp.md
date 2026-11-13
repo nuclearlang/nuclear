@@ -99,7 +99,7 @@ not declare, answers where to write it.
 | Tool | What it does |
 |---|---|
 | `developer_task(project, title, description, criteria, use_case)` | **the first step of every task that writes `.nuc`**: the local agents do the whole task in the project (plan, tests first, code, verification, security, artifacts) and answer the run's journal. `use_case`: `feature`, `bug`, `refactor`, `test` |
-| `developer_retry(project, run, from_stage)` | a run that failed, again from the step that failed, every step that passed kept; or the whole of `from_stage` |
+| `developer_retry(project, run, from_stage, from_step, scratch)` | a run again: from the step that failed, every step that passed kept; the whole of `from_stage`; from one step (`from_step`: its id in the journal, passed or failed) and every step after it; or from scratch (`scratch`: every stage again). What the steps left out wrote is undone first |
 | `developer_review(project, run, notes, files)` | **the last step**: the lead's corrections, kept in the journal; each corrected file goes to the graph's examples |
 | `developer_code(task, platform, path, kind, context, project)` | one `.nuc` file outside a task, written, checked and repaired by the local model. It returns the file; it does not write it |
 | `developer_test(task, code, platform)` | the Nuclear tests of a piece of code |
@@ -110,6 +110,7 @@ not declare, answers where to write it.
 | Tool | What it does |
 |---|---|
 | `graph_strategy(request, platform)` | **the first call for any request**: which kind of request it is (a whole system, a component, one screen, a use case, a rename, a failing test, a question...), the signs that say so, and the plan of that kind, step by step with the tool of each step |
+| `graph_answer(question, platform)` | the exact answer of a question that has one (every command of a tool, the tools of this server and their parameters, the commands that write a kind, a diagnostic by its code, the stages of the Loop, a version...): the rows of the graph's database, whole, never recalled; then the cards the shelves answer by meaning. For "which", "list", "what are the" questions |
 | `graph_search(query, shelf, k, platform, kind, type)` | the cards that answer a question, by meaning and by exact name (a diagnostic code, a command, a kind), each with the rows it links to. `shelf`: `concepts`, `language`, `platforms`, `tools`, `errors`, `capabilities`, `playbooks`, `examples`, `docs`, `memory`; empty searches all |
 | `graph_card(id)` | one row by its id: `error:N0114`, `kind:backend.usecase`, `tool:dragonfly.gen.usecase`, `mcp:generate_usecase`, `playbook:add-a-use-case` |
 | `graph_prompt(use_case)` | the validated prompt of `feature`, `refactor`, `bug`, `docs`, `diagram`, `test`, `security`, `piece`, `plan` |

@@ -156,6 +156,8 @@ fn errors(l: &Loader, file: &Path) -> Vec<String> {
     if let Some((root, Ok(manifest))) = Manifest::find(file, &dialects)
         && let (Some(d), _) = l.load(&manifest.dialect)
     {
+        // with the project's own type definitions (`<project>/defs`), as `nuclear check` reads the project
+        let d = project::with_project_defs(&root, &d).0.unwrap_or(d);
         let built = project::build(&root, &manifest, &d);
         for f in &built.files {
             add(&f.diagnostics, &SourceFile::new(f.source_path.display().to_string(), f.source.clone()));
@@ -192,5 +194,31 @@ mod tests {
         assert_eq!(settings["hooks"]["PostToolUse"].as_array().unwrap().len(), 1);
         assert_eq!(std::fs::read_to_string(dir.join("CLAUDE.md")).unwrap(), "@AGENTS.md\n");
         assert!(dir.join(".cursor/rules/nuclear.mdc").is_file());
+    }
+
+    /// The hook checks a project as `nuclear check` does: a name of the project's own type definitions
+    /// (`<project>/defs`) is no error.
+    #[test]
+    fn the_hook_reads_the_type_definitions_of_the_project() {
+        let dir = std::env::temp_dir().join(format!("nuclear-agent-hook-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let defs = "defs/python/probe_lib/1.0.0";
+        let files = [
+            ("nuclear.toml", "[project]\nname = \"demo\"\ndialect = \"python\"\n"),
+            ("probes.nuc", "make() Probe\n  Probe()\n"),
+            (&format!("{defs}/package.toml") as &str, "[package]\nname = \"probe_lib\"\nversion = \"1.0.0\"\nlanguage = \"python\"\ndepends = []\nlibraries = [\"probe_lib\"]\n"),
+            (&format!("{defs}/index.json"), "{\"format\": 1, \"libraries\": [\"probe_lib\"], \"reexports\": {}, \"symbols\": {\"Probe\": 0}, \"classes\": {\"Probe\": {\"supers\": [], \"members\": []}}}"),
+            (&format!("{defs}/api.json"), "{\"format\": 1, \"declarations\": [{\"name\": \"Probe\", \"library\": \"probe_lib\", \"kind\": \"class\", \"constructors\": [{\"name\": \"\", \"params\": []}]}]}"),
+        ];
+        for (rel, text) in files {
+            let path = dir.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let l = Loader::new(nuclear_dialect::dialect_dirs(Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))));
+        assert_eq!(errors(&l, &dir.join("probes.nuc")), Vec::<String>::new());
+        std::fs::write(dir.join("probes.nuc"), "make() Probe\n  Missing()\n").unwrap();
+        assert_eq!(errors(&l, &dir.join("probes.nuc")).len(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

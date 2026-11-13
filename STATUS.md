@@ -358,15 +358,26 @@ comparison tables.
 
 ## Untested (done; needs a manual test)
 
+- The Loop's graph, the chat's exact answers and the Smart Graph in Nuclear (ADR-0102 §23, ADR-0107, editors 0.49.0,
+  2026-11-13): the run's page inside a running VS Code (the graph, the drawer of a node, *Run again from this step*,
+  *Run <stage> again*, *Run again from scratch* and its confirmation were rendered headless and the engine is tested;
+  the retries were run for real only through `nuclear-loop`); the chat's panel with the exact rows under an answer
+  (asked over HTTP only: the panel draws headings and lists, not tables); the JetBrains plugin
+  (`nuclear-jetbrains/build/nuclearlang-0.49.0.zip`, built, not installed in an IDE); a release archive with the
+  graph's `.nuc` sources (`tools/release/stage.sh`) and the set-up's `nuclear build` step on a machine without the
+  working tree (here the installed graph is the working tree's, editable); the MCP tools `graph_answer` and
+  `developer_retry(from_step, scratch)` called by a real client (their functions are tested).
+
 - ADR-0106 (the set-up of the AI services, editors 0.48.0): the wizard inside a running VS Code (its pages were
   rendered headless; the offer at start-up, *Install it for me* in a terminal, the three-second check, *Try again*);
   macOS (launch agents, Homebrew for Ollama) and Windows (the Startup script, `winget`, `install.ps1 -AiProfile`,
   `nuclear-developer.cmd`): written, never run; a machine without uv or without Ollama (both were here: their
   installers were not run by the set-up); the public one-liner with a real release (only a local archive into a test
   home, and its local profiles only up to the services step, because systemd's user manager is the real user's); a
-  login after a restart of the machine (the units are enabled and restart on failure; whether the keyring is open when
-  the graph starts was not seen); the `lite` profile's download (its model was already here); the settings page's
-  Start / Restart against the units.
+  login after a restart of the machine (the units are enabled and restart on failure; the keyring is not open when the
+  graph starts: since 2026-11-13 the graph waits for it and makes no second secret, ADR-0106 §9, proved by a test
+  with a keyring that closes and not by a real reboot); the `lite` profile's download (its model was already here); the
+  settings page's Start / Restart against the units.
 
 - ADR-0105 (strategies, editors 0.46.0): the Loop panel in a running VS Code (the *Analysis* step of the
   Specification stage, a stage skipped by a strategy, the questions that stop a run), the JetBrains tool window, and
@@ -562,6 +573,10 @@ comparison tables.
 
 ## Pending: Dragonfly backend — fastapi dialect (today `langgraph`, packages/dragonfly-py)
 
+- `dragonfly analyze` in a fastapi project: "the fastapi dialect has no toolchain.analyze" (found 2026-11-13 in
+  `nuclear-developer`); the `AGENTS.md` that `dragonfly agent init` writes tells every agent to run it after
+  `dragonfly check`.
+
 - A repository whose name implies an entity nobody declares compiles (found 2026-11-12 by a rename, ADR-0105): with
   `Supplier` renamed to `Vendor` and `SupplierRepository` left, `nuclear check .` reports nothing and the generated
   Python fails when imported (`NameError: name 'Supplier' is not defined`). The repository kind takes its entity from
@@ -628,6 +643,32 @@ comparison tables.
 
 ## Pending: AI loop (nuclear-graph, nuclear-developer, the Loop tool; ADR-0102)
 
+- A resource that reads another API gets no test (found again 2026-11-13 with the user's run
+  `nuclear_rick_and_morty/.nuclear/loop/runs/20261111-implements-list-character-feature`: it passes from scratch with
+  10 generated files and **0 tests**; the acceptance step lists "create the unit test" as not shown met, and the
+  endpoint's answer was never compared with the API's). The generators write no test for `--source rest`, and *Tests
+  first* is skipped when every file was generated: the generator needs a test over a fake `Http` connection (the
+  platform has none to give a test), or the tester must write one from the criteria.
+- The old ledgers (runs of the Loop before `ENGINE = 2`): a from-scratch restart now removes a file the ledger says
+  "was" what an earlier attempt wrote, only when that text is a step's `code` of the run; an older run whose steps
+  kept no code still gets such a file back.
+
+- The chat with exact facts (ADR-0107, measured 2026-11-13 with `gemma4:e2b`): the rows under an answer are always
+  right and whole, the model's explanation above them is not always (asked for "a repository that calls an endpoint"
+  it explained routes; given 27 tools it named six groups). The rows of `query:kind.create` say a generator's
+  condition as the generator's own word (`when rest`, `when db`), not as the option that sets it (`--source rest`):
+  the generated rows of the generators need the option of each condition. An answer with facts is long (the
+  explanation, then every row): the chat's panel could fold the rows.
+- The planner runs a query for 12 of the 111 open questions measured (2026-11-13), each about one named thing (a
+  diagnostic's code, where a kind's file goes, the example files of a kind). One gets more than it asks: the bare
+  command "dragonfly gen usecase" also gets the 9 rows of `query:generators` (its question is within `BESIDE` of
+  `query:cli.command`'s). `query:examples` has no row for a repository or an entity of the backend: no example
+  project on the shelf declares one (`rick_api` reads an API).
+- The Loop's disk check holds the temporary folder to the same 500 MB as the project (2026-11-13: `/tmp`, a 7.7 GB
+  tmpfs, was full of other sessions' scratch and of `flutter_tools.*` folders, and every run stopped at *Check the
+  connections*): the message now names the folder and the diagnoser has the kind `disk`; nothing cleans the
+  temporary folders the tools leave (`nuclear-lsp-backend-*`, `nuclear-web-device-*`).
+
 - What the generators write in their comments says "a order" (`// Changes a order`, `@test("adds a order and finds
   it")`): the article is not chosen by the name's first letter (the three platforms' `[[generators.resource]]`
   templates).
@@ -650,6 +691,20 @@ comparison tables.
   the plan declares.
 
 ## Pending: nuclear (language and compiler)
+
+- Found while writing `nuclear-graph` in Nuclear (the `python` dialect, 2026-11-13; each cost a wrong program that
+  `nuclear check` accepted, or a detour). **Silent**: a top-level value of a file is not visible to the other files of
+  a project (it is exported through a function), and an UPPER_CASE name nothing defines is not reported; a member of
+  Nuclear's library on a receiver whose type is not known is written as it is (`x.length`) or rewritten as if it were
+  a list (`collection.count()` → `sum(1 for ...)`, `replace`; `matrix.sum(axis = 1)` of an `any` → `sum(matrix)`, its
+  named argument dropped: found again 2026-11-13), and an untyped map is indexed as it is instead of with `.get`; a constructor parameter is an attribute, so a local of the same name writes the instance's state;
+  `xs.findIndex((i) => ...)` writes `for i, i in enumerate`; a spread of a parenthesised expression loses its
+  parentheses (`[a, ...(c ? x : y)]`); a local named like a function of another file imports that function (a
+  cycle); a typed top-level value (`PORT: int = 1`) is written as a class; a module with only typed attributes that
+  extends a library class (`X: BaseModel` + `roots: string[]`) is written as a Protocol; `list` as a method's name
+  captures the builtin inside its class. **Not parsed**: `any[] ? a : b` and a map literal inside a ternary; a
+  back-tick or `#` inside a text nested in an interpolation (N0022). **Missing**: `assert` (tests use `expect()`),
+  a regex that matches across lines (no `dotAll`). Reserved words that read as names: `match`, `use`, `final`.
 
 - `~` before a call that is not asynchronous compiles and fails in Python (found 2026-11-12 with `gen usecase`): a
   use case whose `exec` has no `~` is synchronous, so is its facade alias, and a controller that writes
@@ -689,6 +744,81 @@ comparison tables.
 
 ## Log (newest first)
 
+- 2026-11-13 · nuclear-developer session · **The five findings of the entry below, fixed (asked by the user:
+  "arreglalo").** (1) **The graph's search is exact** (ADR-0104 §3): `Store.near` and `Store.measure` compare the
+  vector the store keeps of every item a filter matches (numpy over what Chroma reads back); the approximate index is
+  not asked. Scan of the 2 618 rows: none unreachable (3, then 1, before); 173 questions in 42 s. (2) **A closed
+  keyring is waited for** (ADR-0106 §9, `secrets_store.nuc`): the names the keyring keeps are written down
+  (`.keyring`); a secret of a closed keyring is waited for 90 s and then refused (the unit starts again), never made
+  again, and a file made while it was closed is not read; test with a keyring that closes
+  (`tests/test_secrets.nuc`). This machine's stale `~/.local/share/nuclear-graph/.owner` is no longer read (not
+  deleted). (3) **`nuclear agent hook`** builds with the project's own definitions (`agent.rs`, a test). (4) **The
+  three open questions**: every MCP tool's row has the generated question "what does <tool> do"
+  (`extract_tools.nuc`); `query:examples` answers "an example of a <kind>"; "que hace el mcp" moved from
+  `query:mcp.tools` to `concept:mcp`; three more entries in `questions.toml` (173). (5) **The Developer's type
+  check**: `nuclear-graph` ships `py.typed`; the `try` template has `catch_used` and the `python` dialect writes
+  `except Exception:` when the block does not name the caught value (`emit.rs`, `contract.rs`, `spec/python.md`
+  §3.12 with its equivalence): pyright strict over the Developer's `build/`, 0 errors (12 before). **Checked:** root
+  `cargo test` 278 + clippy -D warnings, spec-check python 17/0 and fastapi 16/0; nuclear-graph 25 tests,
+  basedpyright clean; nuclear-developer 16 tests; `knowledge check` clean, `knowledge ask` 173 of 173;
+  `eval/run.py chat` 14 of 14; `./install.sh --no-vscode --no-zed` run (the hook on this project: no error); both
+  services restarted. Not done: the editors were not rebuilt (their bundled `python` dialect lacks `catch_used`,
+  which only the emitter reads); no `eval/run.py local` round; the keyring was not closed for real (a reboot).
+  Found: a library member on an `any` receiver loses its named argument ("Pending: nuclear"). Docs: ADR-0104 §3,
+  ADR-0106 §9, `spec/python.md`, the emitter's context, the graph's README, the CHANGELOGs of nuclear, nuclear-graph
+  and nuclear-developer, `concept:smart-graph`, `failure:no-access-to-the-graph`. Then pushed (asked by the user:
+  "sube los cambios en todos los proyectos que aun no se han actualizado"): see the entry's repositories in git.
+- 2026-11-13 · nuclear-developer session · **The chat answered "que es nuclear lang?" with every command of `nuclear`
+  (reported by the user with a screenshot).** Cause: the graph's planner ran a query of the exact facts whenever the
+  question wrote a name a query takes ("nuclear" is a tool and a component) and was within the loose `NAMED` distance
+  of its exact question; measured, 57 of the 107 open questions of `questions.toml` ran one ("what is the smart graph"
+  47 rows, "how does the mcp work" 27). Fixed in `nuclear-graph/planner.nuc`: a query runs only when its exact
+  question is closer to what was asked than the closest card of the shelves (ADR-0107 §4); none of the 12 exact
+  questions lost its query, 14 of 110 open ones still run one (they name one thing; "Pending: AI loop").
+  `questions.toml`: `exact = false` (an open question the planner must leave to the shelves; `knowledge ask` checks
+  it), 17 entries, three of them new; asks added to `concept:nuclearlang`, `concept:mcp`, `concept:loop` and
+  `failure:a-command-is-not-found`; `concept:smart-graph` says the rule. **Found on the way and fixed:** (1) a card
+  brought in by a name was looked up in Chroma's approximate index, which after the ingest no longer reached 3 cards
+  of 2 617 (a question of the base stopped finding its failure): `Store.measure` measures it on its stored vector
+  (`retrieve.nuc`); (2) a result's `distance` was that of the facet that ranked the card, not the closest by meaning,
+  so a question of the card equal to the one asked did not count; (3) the chat's prompt kept the "Exact facts"
+  heading and its instructions when there were no rows, and the 2B model ended its answer with those instructions:
+  `Workbench.prompt` drops a section all of whose values are empty (nuclear-developer; the prompt files are
+  unchanged: a first attempt that moved the instructions to the guide made the model retell the list and was
+  reverted). **Checked:** nuclear-graph 24 tests (the planner's case fails without the rule), basedpyright clean;
+  nuclear-developer 16 tests; the base at revision 48, `knowledge check` clean, `knowledge ask` 171 of 171;
+  `eval/run.py chat` 14 of 14; the user's question in the live chat: the explanation alone, and "que comandos tiene
+  nuclear-loop?" still ends with its 7 rows. Both services were restarted to load the code (the graph four times).
+  **Found and not fixed** (recorded): the approximate index for a search by meaning ("Pending: AI loop", to decide
+  with the user); the keyring at boot ("Half done", ADR-0106 LEFT 5); `nuclear agent hook` without the project's
+  definitions ("Pending: nuclear"); the Developer's type check. Docs: ADR-0107 §§4–6, ADR-0102 §15, the graph's
+  README, the CHANGELOGs of nuclear-graph and nuclear-developer, `prompts/agents/README.md`. No evaluation round of
+  the coder (`eval/run.py local`): its prompts have no section that the new rule drops in a first attempt except
+  `repair.md`'s and `faithful.md`'s "Your last answer", which a repair always fills. The graph's own `.venv` still
+  held the 0.1.0 install of the deleted `src/` (the end-of-turn hook's `knowledge check` could not import the
+  package): `uv sync --extra server --extra test` there (`uv.lock` now says 0.2.0). Nothing committed.
+- 2026-11-13 · AI-loop session · **The Loop retries anything and shows its decisions as a graph; the chat answers
+  from exact facts; the Smart Graph is written in Nuclear (asked by the user: "la herramienta de loop aun no consigue
+  en lo absoluto su objetivo", "una base de datos relacional como sqlite para las consultas deterministas", "si el
+  nuclear-smartgraph no esta hecho con nuclear debes migrarlo ya mismo", then "termina lo que falta").** ADR-0107
+  (new), ADR-0102 §23, rule 12 of `AGENTS.md` (Nuclear and Dragonfly first). **Switched and installed**: `nuclear-graph`
+  0.2.0 is its `.nuc` files (`src/` and the Python tests deleted; `build/nuclear_graph` generated and git-ignored;
+  `pyproject.toml` lists it as an artifact, else the wheel is empty; `knowledge examples` replaces
+  `check_examples.py`); the exact facts live in memory only (made from the sealed cards: nothing in clear on disk,
+  which answers what was left to confirm with the user); the chat calls the planner and ends its answer with the
+  rows, put there by code (the model alone gave the 27 MCP tools whole in one run and as six groups in the next);
+  editors 0.49.0 packaged and installed (VS Code, Zed; the JetBrains zip built); `stage.sh` and the set-up carry and
+  build the graph's sources; `[project] package` of `nuclear.toml`. **Checked**: nuclear-graph 24 tests, basedpyright
+  clean; nuclear-developer 15; nuclear-vscode 33; `cargo test -p nuclear-transpile --test projects`; the base at its
+  new revision, `knowledge check` and `knowledge examples` clean (30 blocks), `knowledge ask` 168 of 168 (12 with
+  `exact = true`); `eval/run.py chat` 14 of 14 after the rows were appended (13 before). **The user's run**
+  (`nuclear_rick_and_morty`, `nuclear-loop restart`): passed from scratch after three things it uncovered were fixed:
+  `/tmp` full stopped it at the first check (the message now names the folder; the diagnoser has the kind `disk`);
+  the undo of the old run brought back a test an earlier attempt had written (`LoopEngine.undo`, a test for it);
+  `dragonfly test` ran the compiled test of a source that was gone (nestjs `package_json.tpl`: `dist/test` is removed
+  before compiling). It still writes no test: "Pending: AI loop". Lists: "Half done" entry removed; "Untested",
+  "Pending: AI loop", "Pending: nuclear" (the compiler's findings of the migration), "Pending: Dragonfly backend —
+  fastapi" (`dragonfly analyze`). Nothing committed.
 - 2026-11-13 · nuclear-developer session · **The AI services built into the installer (ADR-0106; asked by the user:
   "necesito que esto venga builtin dentro del instalador", then a wizard that reads the hardware and offers lite /
   medium / hard, services at login, Ollama as a detected or installed requirement, remote agents only as a choice).**
