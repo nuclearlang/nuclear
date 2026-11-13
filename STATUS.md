@@ -702,7 +702,11 @@ comparison tables.
   the website's content build and one cargo test fail until this session's test folders were deleted; other
   sessions' scratch folders (3.9 GB) and Flutter's temporary folders (1.7 GB) are still there. Pushed to the
   repositories (asked by the user: "subelo al repo"): every repository of the tree with pending changes, the work of
-  2026-11-11 to 2026-11-13.
+  2026-11-11 to 2026-11-13. CI after the push: nuclear, dragonfly-backend, dragonfly-web, nuclear-vscode,
+  nuclear-zed and the website green; dragonfly-mobile red as before (the Flutter deprecation, "Pending: Dragonfly
+  mobile"); dragonfly failed first on the push order (it cloned nuclear before `map::shape` was there), then on a lint
+  of the CI's newer clippy (Rust 1.100, `needless_range_loop` in a test of `device/terminal/render.rs`; the local
+  1.99 does not report it): fixed and pushed.
 
 - 2026-11-12 · nuclear-developer session (resumed) · **A strategy for each kind of request (ADR-0105; asked by the
   user: "formula cada estrategia para el agente dependiendo el tipo de feature… el apoyo máximo es en el generador, el
